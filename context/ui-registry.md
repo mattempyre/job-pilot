@@ -31,7 +31,7 @@ Last updated: 2026-06-08
 | Text — primary   | `text-text-slate`, `text-accent-foreground` |
 | Text — secondary | none |
 | Spacing          | `h-20`, `px-6`, `gap-12`, `px-7 py-4` |
-| Hover state      | `hover:text-accent`, `hover:-translate-y-0.5`, `hover:bg-overlay`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent` |
+| Hover state      | `duration-200 ease-out`, `hover:text-accent`, `hover:-translate-y-0.5`, `hover:bg-overlay`, `hover:shadow-md`, `active:duration-75`, `focus-visible:ring-2 focus-visible:ring-accent` |
 | Shadow           | `shadow-sm`, `hover:shadow-md` |
 | Accent usage     | `hover:text-accent` |
 
@@ -71,7 +71,7 @@ Last updated: 2026-06-08
 | Text — primary   | `text-text-slate`, `text-accent-foreground` |
 | Text — secondary | `text-text-slate-medium`, `text-text-muted` |
 | Spacing          | `pt-16`, `px-6 py-24`, `md:px-16 md:py-28`, `mt-8`, `gap-4` |
-| Hover state      | `hover:-translate-y-0.5`, `hover:bg-overlay`, `hover:bg-surface`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-overlay`, `hover:bg-surface`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `active:duration-75`, `focus-visible:ring-2 focus-visible:ring-accent` |
 | Shadow           | `shadow-sm`, `hover:shadow-md` |
 | Accent usage     | none |
 
@@ -151,7 +151,7 @@ Last updated: 2026-06-08
 | Text — primary   | `text-text-slate`, `text-accent-foreground` |
 | Text — secondary | `text-text-muted` |
 | Spacing          | `px-6 py-20`, `md:px-16 md:py-24`, `mt-8`, `gap-4` |
-| Hover state      | `hover:-translate-y-0.5`, `hover:bg-overlay`, `hover:bg-surface`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-overlay`, `hover:bg-surface`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `active:duration-75`, `focus-visible:ring-2 focus-visible:ring-accent` |
 | Shadow           | `shadow-sm`, `hover:shadow-md` |
 | Accent usage     | none |
 

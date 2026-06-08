@@ -36,7 +36,7 @@ export function Navbar() {
 
         <Link
           href="/login"
-          className="rounded-md bg-overlay-dark px-7 py-4 text-[16px] font-semibold leading-5 text-accent-foreground shadow-sm transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-overlay hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:translate-y-0"
+          className="rounded-md bg-overlay-dark px-7 py-4 text-[16px] font-semibold leading-5 text-accent-foreground shadow-sm transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-overlay hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:translate-y-0 active:duration-75"
         >
           Start for free
         </Link>

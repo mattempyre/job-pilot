@@ -59,3 +59,4 @@ _Add decisions here as they are made during implementation._
 - 2026-06-08 — Homepage built from `context/designs/landing-page.png` using public assets. CTA links point to `/login` and `/find-jobs`; auth-aware redirects will be handled when Phase 1 Feature 02 Auth exists.
 - 2026-06-08 — Homepage refactored into architecture-defined components under `components/layout/` and `components/homepage/`; `app/page.tsx` is now composition only.
 - 2026-06-08 — Homepage CTA buttons received consistent hover, active, shadow, and focus-visible states using project tokens.
+- 2026-06-08 — Homepage CTA hover states now use explicit `duration-200 ease-out` transitions with faster active press timing.

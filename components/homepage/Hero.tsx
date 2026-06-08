@@ -17,7 +17,7 @@ export function Hero() {
         <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Link
             href="/login"
-            className="inline-flex min-h-12 items-center gap-3 rounded-md bg-overlay-dark px-6 text-[18px] font-semibold leading-6 text-accent-foreground shadow-sm transition-[background-color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-overlay hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:translate-y-0"
+            className="inline-flex min-h-12 items-center gap-3 rounded-md bg-overlay-dark px-6 text-[18px] font-semibold leading-6 text-accent-foreground shadow-sm transition-[background-color,box-shadow,transform] duration-200 ease-out hover:-translate-y-0.5 hover:bg-overlay hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:translate-y-0 active:duration-75"
           >
             Get Started
             <span className="text-text-muted" aria-hidden="true">
@@ -26,7 +26,7 @@ export function Hero() {
           </Link>
           <Link
             href="/find-jobs"
-            className="inline-flex min-h-12 items-center rounded-md border border-border-muted bg-surface/70 px-7 text-[18px] font-medium leading-6 text-text-slate shadow-sm transition-[background-color,border-color,box-shadow,color,transform] hover:-translate-y-0.5 hover:border-accent hover:bg-surface hover:text-accent hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:translate-y-0"
+            className="inline-flex min-h-12 items-center rounded-md border border-border-muted bg-surface/70 px-7 text-[18px] font-medium leading-6 text-text-slate shadow-sm transition-[background-color,border-color,box-shadow,color,transform] duration-200 ease-out hover:-translate-y-0.5 hover:border-accent hover:bg-surface hover:text-accent hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface active:translate-y-0 active:duration-75"
           >
             Find Your First Match
           </Link>
