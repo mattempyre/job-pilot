@@ -103,3 +103,43 @@
     font: inherit;
   }
 }
+
+@layer utilities {
+  .landing-gradient {
+    background:
+      radial-gradient(
+        circle at 30% 18%,
+        color-mix(in srgb, var(--color-accent-light) 72%, transparent) 0,
+        transparent 32%
+      ),
+      radial-gradient(
+        circle at 71% 12%,
+        color-mix(in srgb, var(--color-info-light) 78%, transparent) 0,
+        transparent 34%
+      ),
+      radial-gradient(
+        circle at 78% 76%,
+        color-mix(in srgb, var(--color-accent-light) 58%, transparent) 0,
+        transparent 30%
+      ),
+      linear-gradient(
+        90deg,
+        var(--color-surface) 0%,
+        var(--color-accent-muted) 38%,
+        var(--color-info-lightest) 76%,
+        var(--color-surface) 100%
+      );
+  }
+
+  .landing-stripes {
+    background:
+      repeating-linear-gradient(
+        120deg,
+        transparent 0,
+        transparent 5px,
+        color-mix(in srgb, var(--color-border) 54%, transparent) 5px,
+        color-mix(in srgb, var(--color-border) 54%, transparent) 6px
+      ),
+      var(--color-surface);
+  }
+}
