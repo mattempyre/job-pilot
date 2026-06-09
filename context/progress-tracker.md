@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Phase 1 — Foundation
-**Last completed:** 03 PostHog Initialization
-**Next:** 04 Database Schema
+**Phase:** Phase 2 — Profile Page
+**Last completed:** 04 Database Schema
+**Next:** 05 Profile Page — Full UI
 
 ---
 
@@ -19,7 +19,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - [x] 01 Homepage
 - [x] 02 Auth
 - [x] 03 PostHog Initialization
-- [ ] 04 Database Schema
+- [x] 04 Database Schema
 
 ### Phase 2 — Profile Page
 
@@ -50,7 +50,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Decisions Made During Build
 
-_Add decisions here as they are made during implementation._
+- 2026-06-09 — Feature 04 schema is tracked in `db/migrations/0001_initial_schema.sql` and applied to InsForge from that repo-owned source of truth.
+- 2026-06-09 — Resume storage references use both `resume_pdf_url` and `resume_pdf_key` because current InsForge storage docs return both values and object replacement/delete operations need the key.
+- 2026-06-09 — Feature 04 review fix: search jobs now cascade when their `agent_runs` row is deleted, and profile resume keys are constrained to `resumes/{user_id}/...`.
 
 ---
 
@@ -69,3 +71,5 @@ _Add decisions here as they are made during implementation._
 - 2026-06-09 — PostHog initialization completed using `instrumentation-client.ts`, `lib/posthog-client.ts`, and `lib/posthog-server.ts`. Auth now identifies users after OAuth and resets identity on logout. Only the four project-approved events are exposed through typed helpers: `job_search_started`, `job_found`, `profile_completed`, and `company_researched`.
 - 2026-06-09 — PostHog browser ingestion now uses the same-origin `/ingest` reverse proxy configured in `next.config.ts`, while `ui_host` points to the real PostHog app host for EU/US projects. This avoids direct browser remote-config requests to the third-party ingestion domain.
 - 2026-06-09 — PostHog review fixes applied: SDK autocapture is disabled, generic capture helpers are internal, `NEXT_PUBLIC_POSTHOG_KEY` is the canonical app env var, and the build plan now reflects the Next.js `instrumentation-client.ts` initialization path.
+- 2026-06-09 — Database Schema completed. Created and applied `profiles`, `agent_runs`, `jobs`, and `agent_logs` with foreign keys, check constraints, indexes, authenticated own-row RLS policies, and a `profiles` updated-at trigger. Created private InsForge `resumes` storage bucket.
+- 2026-06-09 — Database Schema review fixes applied after `/review`: changed `jobs.run_id` from `ON DELETE SET NULL` to `ON DELETE CASCADE`, and added `profiles_resume_key_matches_user`.

@@ -186,7 +186,7 @@ GPT-4o processes content
         ↓
 New PDF uploaded to InsForge Storage
         ↓
-URL saved to profiles table
+URL and object key saved to profiles table
 ```
 
 ---
@@ -218,6 +218,7 @@ URL saved to profiles table
 | portfolio_url       | text        |                                              |
 | work_authorization  | text        | citizen / permanent_resident / visa_required |
 | resume_pdf_url      | text        | InsForge Storage URL of current resume       |
+| resume_pdf_key      | text        | InsForge Storage object key of current resume |
 | is_complete         | boolean     | True when all required fields filled         |
 | created_at          | timestamptz |                                              |
 | updated_at          | timestamptz |                                              |
@@ -283,7 +284,7 @@ URL saved to profiles table
 | ------- | ---------------------------- | ------------------------- |
 | resumes | resumes/{user_id}/resume.pdf | Current active resume PDF |
 
-Access: authenticated users only, own files only.
+Access: private bucket. Resume keys must use `resumes/{user_id}/...`; `profiles.resume_pdf_key` has a database check constraint that only allows keys under the profile owner's prefix. App logic must still scope storage operations to the current user.
 
 ---
 

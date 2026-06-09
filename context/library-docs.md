@@ -130,27 +130,27 @@ const { error } = await insforge
 // Upload file
 const { data, error } = await insforge.storage
   .from("resumes")
-  .upload(`${userId}/resume.pdf`, fileBuffer, {
-    contentType: "application/pdf",
-    upsert: true, // overwrites existing file
-  });
+  .upload(`resumes/${userId}/resume.pdf`, file);
 
-// Get public URL
-const { data } = insforge.storage
-  .from("resumes")
-  .getPublicUrl(`${userId}/resume.pdf`);
+if (error || !data) {
+  throw new Error("Failed to upload resume");
+}
 
-const url = data.publicUrl;
+// Save both fields to profiles.
+const resumePdfUrl = data.url;
+const resumePdfKey = data.key;
 ```
 
 **Storage paths:**
 
-- Base resume: `resumes/{user_id}/resume.pdf`
+- Base resume upload request path: `resumes/{user_id}/resume.pdf`
 
 **Rules:**
 
-- Always use `upsert: true` for base resume uploads — overwrites existing file
-- Always save the public URL back to the DB after upload
+- InsForge uploads return both `url` and `key`; always save both `resume_pdf_url` and `resume_pdf_key` to the DB
+- `resume_pdf_key` must start with `resumes/{user_id}/`; the database rejects profile rows that point outside the profile owner's prefix
+- If replacing a resume, remove the previous object by `resume_pdf_key` before upload when a single active object is required
+- If InsForge auto-renames a same-key upload, use the returned `key` instead of assuming the requested path
 - Never write files to disk — always upload buffer directly to storage
 
 ---
@@ -634,14 +634,21 @@ const ResumePDF = ({ profile }: { profile: Profile }) => (
 
 // Generate buffer
 const buffer = await renderToBuffer(<ResumePDF profile={profile} />)
+const file = new Blob([buffer], { type: 'application/pdf' })
 
 // Upload directly to InsForge Storage
-await insforge.storage
+const { data, error } = await insforge.storage
   .from('resumes')
-  .upload(`${userId}/resume.pdf`, buffer, {
-    contentType: 'application/pdf',
-    upsert: true
-  })
+  .upload(`resumes/${userId}/resume.pdf`, file)
+
+if (error || !data) {
+  throw new Error('Failed to upload resume')
+}
+
+await saveResumeReference({
+  resumePdfUrl: data.url,
+  resumePdfKey: data.key,
+})
 ```
 
 **Supported CSS properties:**
@@ -654,7 +661,7 @@ Only use these — others are silently ignored:
 - Always use `renderToBuffer` — not `renderToStream` or `PDFDownloadLink`
 - PDF generation only in `app/api/resume/` routes
 - Generated buffer uploaded directly to InsForge Storage — never written to disk
-- Always save public URL to DB after upload
+- Always save the returned storage URL and key to DB after upload
 
 ---
 

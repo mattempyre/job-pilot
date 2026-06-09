@@ -106,8 +106,8 @@ Wire profile form to InsForge DB.
 **Logic:**
 
 - Server Action in actions/profile.ts saves all form fields to profiles table
-- Resume PDF uploaded to InsForge Storage at resumes/{user_id}/resume.pdf with upsert: true
-- resume_pdf_url saved to profiles table after upload
+- Resume PDF uploaded to InsForge Storage under resumes/{user_id}/
+- resume_pdf_url and resume_pdf_key saved to profiles table after upload
 - is_complete set to true when all required fields are filled
 - Completion percentage and missing fields calculated and saved
 - Form pre-fills with existing data on return visits
@@ -149,8 +149,8 @@ Generate a clean professional PDF resume from current profile data using GPT-4o.
   - Polished work experience bullet points
   - Clean professional language throughout
 - @react-pdf/renderer renders GPT-4o output into clean single-page PDF using renderToBuffer()
-- Buffer uploaded to InsForge Storage at resumes/{user_id}/resume.pdf with upsert: true
-- resume_pdf_url updated in profiles table
+- Buffer uploaded to InsForge Storage under resumes/{user_id}/
+- resume_pdf_url and resume_pdf_key updated in profiles table
 
 ---
 

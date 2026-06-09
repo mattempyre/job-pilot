@@ -20,6 +20,8 @@ After building any component — update this file with the component name, file 
 
 ## Non-UI Feature Notes
 
+- 2026-06-09 — Database Schema review fixes changed no visible UI. The migration and docs were tightened for agent-run deletion and resume key ownership constraints.
+- 2026-06-09 — Database Schema added no visible UI components and made no class changes. Feature 04 created the initial InsForge app schema, private `resumes` bucket, and schema docs only.
 - 2026-06-09 — PostHog initialization added no new visible UI components and made no class changes to existing components. Homepage CTA components returned to Server Components after removing wizard-only analytics click handlers.
 - 2026-06-09 — PostHog review fixes changed no visible UI. Autocapture was disabled and helper exports were tightened in analytics code only.
 
