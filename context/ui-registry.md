@@ -207,7 +207,7 @@ Auth pages use the standard Navbar above a centered split card and the standard 
 
 ### Protected Placeholders
 
-File: app/dashboard/page.tsx, app/profile/page.tsx, app/find-jobs/page.tsx
+File: app/dashboard/page.tsx, app/find-jobs/page.tsx
 Last updated: 2026-06-09
 
 | Property         | Class           |
@@ -223,7 +223,7 @@ Last updated: 2026-06-09
 | Accent usage     | none |
 
 **Pattern notes:**
-These are temporary protected-route placeholders for Auth verification. Later full dashboard, profile, and find-jobs features should replace them with their planned complete UI while keeping the same page background, centered max-width, and card baseline. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
+These are temporary protected-route placeholders for Auth verification. Later full dashboard and find-jobs features should replace them with their planned complete UI while keeping the same page background, centered max-width, and card baseline. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
 
 ### LogoutButton
 
@@ -244,3 +244,83 @@ Last updated: 2026-06-09
 
 **Pattern notes:**
 Logout uses the same restrained secondary-button treatment as OAuth provider buttons, with an icon-leading action label and a small inline error state.
+
+### Profile Page
+
+File: app/profile/page.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-background`, `bg-surface` |
+| Border           | `border-x border-border`, `border border-border` |
+| Border radius    | `rounded-xl` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-text-primary` |
+| Text — secondary | `text-[14px] font-normal leading-5`, `text-text-secondary` |
+| Spacing          | `px-8 py-8`, `space-y-6`, `p-6`, `gap-4`, `gap-6`, `mt-2` |
+| Hover state      | none |
+| Shadow           | `shadow-sm` |
+| Accent usage     | none |
+
+**Pattern notes:**
+The full profile page keeps the protected page shell, replaces the placeholder body with a responsive two-column status/resume area, and keeps the page file composition-only. Future protected full-page UIs should preserve the `bg-background` shell, centered `max-w-[1280px]`, and `rounded-xl border border-border bg-surface p-6 shadow-sm` section baseline.
+
+### CompletionIndicator
+
+File: components/profile/CompletionIndicator.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-accent-muted` |
+| Border           | `border border-border` |
+| Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[24px] font-semibold leading-8`, `text-text-primary` |
+| Text — secondary | `text-[14px] font-normal leading-5`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
+| Spacing          | `p-6`, `gap-6`, `gap-4`, `gap-5`, `gap-2`, `mt-2`, `mt-4`, `px-3 py-1` |
+| Hover state      | none |
+| Shadow           | `shadow-sm` |
+| Accent usage     | `text-accent`, `bg-accent-muted`, `stroke-current`, `stroke-border` |
+
+**Pattern notes:**
+Completion status uses the standard card shell with a compact icon tile, pill missing-field tags, and an SVG ring using project token colors. Similar status summaries should keep badges small, uppercase, and tokenized instead of adding colored card backgrounds.
+
+### ResumeUpload
+
+File: components/profile/ResumeUpload.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-surface-secondary`, `bg-info-lightest`, `bg-success-lightest`, `bg-accent` |
+| Border           | `border border-border`, `border-dashed border-border`, `hover:border-accent` |
+| Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground` |
+| Text — secondary | `text-[14px] font-normal leading-5`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
+| Spacing          | `p-6`, `p-4`, `px-6 py-8`, `px-4`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `active:translate-y-0 active:duration-75` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `text-accent`, `bg-accent`, `hover:border-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+Resume management uses a dashed tokenized upload panel and existing primary/secondary button treatments. Future upload surfaces should use the same `border-dashed border-border bg-surface-secondary` treatment and keep real file handling out of UI-only phases.
+
+### ProfileForm
+
+File: components/profile/ProfileForm.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-surface-secondary`, `bg-accent-muted`, `bg-info-lightest`, `bg-success-lightest`, `bg-accent` |
+| Border           | `border border-border`, `hover:border-accent`, `focus:border-accent` |
+| Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-semibold leading-5`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground` |
+| Text — secondary | `text-[12px] font-medium uppercase leading-4`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
+| Spacing          | `space-y-6`, `p-6`, `p-5`, `px-3 py-3`, `px-3 py-1`, `px-4`, `px-5`, `gap-5`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `active:translate-y-0 active:duration-75` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `text-accent`, `bg-accent`, `bg-accent-muted`, `focus:border-accent`, `focus:ring-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+Profile form fields use semantic native controls with a shared `h-11 rounded-md border border-border bg-surface px-3 text-[14px] font-medium` baseline. Section cards use icon-leading headers, uppercase 12px labels, and tokenized chips. Until Feature 06, mutating actions stay `type="button"` with no client state.

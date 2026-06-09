@@ -694,3 +694,32 @@ export async function POST(req: NextRequest) {
 - `pdfData.text` is raw unformatted text — GPT-4o handles the structure extraction
 - Always handle parse errors — some PDFs are image-based and return empty text
 - If `pdfData.text` is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
+
+---
+
+## Playwright
+
+**Check first:** Use the installed `playwright` skill before browser automation work.
+
+### Browser Verification
+
+Playwright is installed as a dev dependency for local visual QA and repeatable screenshots. It is not part of application runtime code.
+
+```bash
+npx playwright --version
+npx playwright install chromium
+```
+
+Screenshots and other browser QA artifacts should be written under:
+
+```text
+output/playwright/
+```
+
+**Rules:**
+
+- Use Playwright for browser verification when the in-app Browser tool is unavailable or insufficient.
+- Do not add Playwright test specs unless a feature explicitly calls for automated browser tests.
+- Keep Playwright imports out of application code under `app/`, `components/`, `lib/`, `actions/`, and `agent/`.
+- For protected-route visual QA, use only throwaway local test cookies or a real development session. Never commit tokens, secrets, or captured auth cookies.
+- Verify desktop and mobile widths for UI features and check for horizontal overflow.

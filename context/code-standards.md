@@ -317,5 +317,6 @@ Approved dependencies for this project:
 - `lucide-react` — Icons
 - `tailwindcss` — Styling
 - `shadcn/ui` components — UI primitives
+- `playwright` — Dev-only browser verification and screenshots
 
 Do not install any other packages without updating this list first.

@@ -1,59 +1,68 @@
-# Memory — Database Schema and Review Fixes
+# Memory — Profile Page Full UI
 
-Last updated: 2026-06-09 22:54 CEST
+Last updated: 2026-06-09 23:47 CEST
 
 ## What was built
 
-Completed Phase 1 Feature 04 Database Schema and addressed the follow-up `/review` findings.
+Completed Phase 2 Feature 05 Profile Page — Full UI.
 
-- Created `db/migrations/0001_initial_schema.sql` as the repo-owned source of truth for the initial InsForge app schema.
-- Applied the migration to the InsForge backend. It created `profiles`, `agent_runs`, `jobs`, and `agent_logs` with foreign keys, check constraints, indexes, authenticated own-row RLS policies, and a `profiles` updated-at trigger.
-- Created the private InsForge `resumes` storage bucket.
-- Fixed review finding 1: `jobs.run_id` now uses `ON DELETE CASCADE`, so deleting an agent run removes its search jobs instead of trying to null a required search `run_id`.
-- Fixed review finding 2 as far as the InsForge permissions allow: added `profiles_resume_key_matches_user`, which rejects `profiles.resume_pdf_key` values outside `resumes/{profile_id}/...`.
-- Updated `context/progress-tracker.md`, `context/ui-registry.md`, `context/architecture.md`, `context/build-plan.md`, and `context/library-docs.md`.
-- The developer removed the stale Tailwind 3.4 instruction from `AGENTS.md`; Tailwind v4 is now consistent with the local UI docs and package deps.
+- Replaced the `/profile` placeholder in `app/profile/page.tsx` with a composed mock-data profile page.
+- Added `components/profile/CompletionIndicator.tsx` for the profile attention banner, completion ring, missing-field tags, and completed-field checklist.
+- Added `components/profile/ResumeUpload.tsx` for the mock resume upload/drop area, active resume summary, Select Resume button, and Generate Resume from Profile button.
+- Added `components/profile/ProfileForm.tsx` for the full semantic profile form:
+  - Personal Info
+  - Professional Info
+  - Work Experience
+  - Education
+  - Job Preferences
+  - bottom Save Profile CTA
+- Installed `playwright` as a dev dependency and installed Chromium for repeatable browser verification.
+- Updated `context/ui-registry.md`, `context/progress-tracker.md`, `context/code-standards.md`, and `context/library-docs.md`.
+- Addressed the Feature 05 `/review` finding by replacing visible internal implementation copy in the save card with user-facing product copy.
+- Re-ran `/imprint` after the review fix. No registry change was needed because only visible copy changed, not visual classes.
 
 ## Decisions made
 
-- Schema changes should be tracked in repo migrations first, then applied to InsForge from that SQL.
-- `jobs.run_id` remains nullable because future non-search jobs with `source = 'url'` may not have a run, but `source = 'search'` requires a run through a check constraint.
-- Deleting an `agent_runs` row cascades to its jobs. This preserves the search-job invariant and avoids `ON DELETE SET NULL` conflicts.
-- `agent_logs.run_id` remains nullable so company-research or job-specific logs can attach to `job_id` without inventing a search run.
-- Resume storage references use both `resume_pdf_url` and `resume_pdf_key`. Current InsForge storage returns both values, and future replace/delete/download flows need the key.
-- The `resumes` bucket is private. `profiles.resume_pdf_key` must point under the profile owner's key prefix, and app logic should scope all storage operations through the current user.
+- Feature 05 remains UI-only. It uses local mock profile data and intentionally does not wire InsForge reads/writes, save logic, file upload, resume extraction, or PDF generation.
+- Profile UI stays mostly Server Component based. Form controls are semantic native inputs/selects/textareas/checkboxes with mock defaults; mutating actions are inert `type="button"` controls.
+- Profile page uses the existing protected-page shell and a responsive top status/resume area followed by full-width form cards.
+- No shadcn/ui primitives were added because the repo currently has no `components/ui` setup. The new UI follows existing tokenized Tailwind patterns directly.
+- Playwright is dev-only browser QA tooling. Keep Playwright code out of application runtime folders and write temporary screenshots under `output/playwright/` when needed.
 
 ## Problems solved
 
-- Confirmed the backend initially only had InsForge auth tables and no app tables.
-- Confirmed `auth.users(id)` is UUID and `auth.uid()` exists, so RLS policies can use the documented ownership pattern.
-- Confirmed InsForge storage docs no longer match older local `upsert` examples; local docs now say to save returned `url` and `key`, and to remove the previous object by key when a single active resume object is required.
-- Attempted to attach a trigger to `storage.objects`, but InsForge rejected it with `permission denied for table objects`. Ownership enforcement was moved to the app schema via `profiles_resume_key_matches_user`.
-- Verified the applied schema through InsForge table schema calls, raw catalog checks, bucket listing, and a live smoke test.
+- Browser verification initially had no in-app Browser tool and no local Playwright package. Playwright was installed and Chromium was downloaded.
+- `/profile` is protected by `proxy.ts`; visual QA used a throwaway local JWT-shaped `insforge_access_token` cookie so the real protected route could be verified without changing app code.
+- Desktop visual QA showed the completion card stretching to the resume card height. Fixed by aligning the top grid items to start.
+- Removed a non-ASCII separator from profile mock data.
+- `/review` found the save card exposed internal implementation status. Replaced it with product-facing copy: "Keep your profile current before starting a new job search."
 
 ## Current state
 
-- `context/progress-tracker.md` says Phase 2 is next, with Feature 05 Profile Page — Full UI.
-- InsForge backend has all four app tables with RLS enabled and four own-row policies per table.
-- `jobs_run_id_fkey` is live as `ON DELETE CASCADE`.
-- `profiles_resume_key_matches_user` is live and rejects resume keys outside `resumes/{profile_id}/...`.
-- InsForge backend has a private `resumes` bucket.
+- `context/progress-tracker.md` marks Feature 05 complete and sets Feature 06 Profile Save Logic as next.
+- `ui-registry.md` includes entries for Profile Page, CompletionIndicator, ResumeUpload, and ProfileForm.
 - Verification passed:
   - `git diff --check`
   - `npm run lint`
   - `npx tsc --noEmit`
-  - Live smoke test for cascade delete and bad resume key rejection
-- Working tree is dirty and uncommitted. It includes Feature 04 changes plus the developer's `AGENTS.md` edit:
-  - modified `AGENTS.md`
+  - `npm run build`
+  - token scan for raw Tailwind color classes and hardcoded hex in `app/profile` and `components/profile`
+  - targeted scan for internal implementation-status copy in `app/profile` and `components/profile`
+  - `npm audit --audit-level=moderate`
+  - Playwright desktop and mobile visual QA for `/profile`, with no horizontal overflow and form content present
+- Temporary Playwright screenshot artifacts were removed before handoff.
+- Working tree is dirty and uncommitted with Feature 05 changes plus Playwright dependency changes:
+  - modified `app/profile/page.tsx`
+  - new `components/profile/` files
   - modified context docs
   - modified `memory.md`
-  - new `db/` migration folder
+  - modified `package.json` and `package-lock.json`
 
 ## Next session starts with
 
-Run `/remember restore`, then start Phase 2 Feature 05 Profile Page — Full UI. Before building UI, read the required context files in order and inspect existing placeholder pages/components. Feature 05 is UI-only with mock data; do not wire save logic, resume upload, resume extraction, or PDF generation yet.
+Start Phase 2 Feature 06 Profile Save Logic. Before implementation, fetch current InsForge SDK docs because Feature 06 touches InsForge auth/database/storage. Then wire the profile form to `profiles`, upload resumes under `resumes/{user_id}/`, save both `resume_pdf_url` and `resume_pdf_key`, calculate `is_complete`, and call `revalidatePath("/profile")`.
 
 ## Open questions
 
-- Should the completed Foundation work through Feature 04 be committed before starting Profile UI?
-- For Feature 05, should `/architect` be used first because the profile form is a large multi-section UI?
+- Should the completed Feature 05 and Playwright dependency changes be committed before starting Feature 06?
+- Should Feature 06 preserve the current mostly Server Component form and use a Server Action directly, or introduce a small Client Component only where needed for pending/error UI?

@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** Phase 2 — Profile Page
-**Last completed:** 04 Database Schema
-**Next:** 05 Profile Page — Full UI
+**Last completed:** 05 Profile Page — Full UI
+**Next:** 06 Profile Save Logic
 
 ---
 
@@ -23,7 +23,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### Phase 2 — Profile Page
 
-- [ ] 05 Profile Page — Full UI
+- [x] 05 Profile Page — Full UI
 - [ ] 06 Profile Save Logic
 - [ ] 07 AI Profile Extraction from Resume
 - [ ] 08 Resume PDF Generation from Profile
@@ -53,6 +53,8 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-09 — Feature 04 schema is tracked in `db/migrations/0001_initial_schema.sql` and applied to InsForge from that repo-owned source of truth.
 - 2026-06-09 — Resume storage references use both `resume_pdf_url` and `resume_pdf_key` because current InsForge storage docs return both values and object replacement/delete operations need the key.
 - 2026-06-09 — Feature 04 review fix: search jobs now cascade when their `agent_runs` row is deleted, and profile resume keys are constrained to `resumes/{user_id}/...`.
+- 2026-06-09 — Feature 05 is UI-only with mock profile data. It intentionally does not wire save logic, file upload, resume extraction, PDF generation, or InsForge reads/writes.
+- 2026-06-09 — Playwright is installed as a dev-only browser verification dependency, with Chromium installed locally for repeatable profile page screenshots.
 
 ---
 
@@ -73,3 +75,4 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-09 — PostHog review fixes applied: SDK autocapture is disabled, generic capture helpers are internal, `NEXT_PUBLIC_POSTHOG_KEY` is the canonical app env var, and the build plan now reflects the Next.js `instrumentation-client.ts` initialization path.
 - 2026-06-09 — Database Schema completed. Created and applied `profiles`, `agent_runs`, `jobs`, and `agent_logs` with foreign keys, check constraints, indexes, authenticated own-row RLS policies, and a `profiles` updated-at trigger. Created private InsForge `resumes` storage bucket.
 - 2026-06-09 — Database Schema review fixes applied after `/review`: changed `jobs.run_id` from `ON DELETE SET NULL` to `ON DELETE CASCADE`, and added `profiles_resume_key_matches_user`.
+- 2026-06-09 — Profile Page Full UI completed. `/profile` now renders mock completion status, resume upload/generation controls, and full semantic profile form sections through `CompletionIndicator`, `ResumeUpload`, and `ProfileForm`. Verified with lint, TypeScript, token scan, and Playwright desktop/mobile screenshots with no horizontal overflow.
