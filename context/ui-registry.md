@@ -157,3 +157,83 @@ Last updated: 2026-06-08
 
 **Pattern notes:**
 Bottom CTA reuses the Hero CTA pattern and pastel gradient to close the landing page consistently.
+
+### OAuthButtons
+
+File: components/auth/OAuthButtons.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `hover:bg-surface-secondary` |
+| Border           | `border border-border`, `hover:border-accent` |
+| Border radius    | `rounded-md` |
+| Text — primary   | `text-[15px] font-semibold leading-5`, `text-text-primary`, `text-accent`, `text-error` |
+| Text — secondary | none |
+| Spacing          | `gap-3`, `h-14`, `px-5`, `gap-4`, `text-center` |
+| Hover state      | `transition-[background-color,border-color,box-shadow,transform]`, `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-surface-secondary`, `hover:border-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `focus-visible:ring-offset-2 focus-visible:ring-offset-surface`, `disabled:opacity-60`, `active:translate-y-0 active:duration-75` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `text-accent`, `hover:border-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+OAuth buttons use full-width provider rows with centered icon+label groups. Google uses an accent icon; GitHub uses primary text color. Future auth provider buttons should match this restrained secondary-button treatment.
+
+### Auth Pages
+
+File: app/(auth)/login/page.tsx, app/(auth)/callback/page.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-background`, `bg-surface`, `landing-gradient`, `bg-surface/70` |
+| Border           | `border border-border`, `border-x border-t border-border`, `border-b border-border`, `lg:border-r` |
+| Border radius    | `rounded-xl`, `rounded-full` |
+| Text — primary   | `text-[56px] font-bold leading-[1.02]`, `text-[34px] font-bold leading-10`, `text-[16px] font-semibold leading-6`, `text-text-slate`, `text-text-primary`, `text-accent`, `text-accent-foreground` |
+| Text — secondary | `text-[22px] leading-9`, `text-[18px] font-semibold leading-7`, `text-[17px] leading-7`, `text-[14px] leading-5`, `text-text-slate-medium`, `text-text-secondary`, `text-error` |
+| Spacing          | `my-8`, `md:my-12`, `px-8 py-10`, `lg:px-12 lg:py-14`, `xl:px-16`, `px-8 py-12`, `lg:px-14`, `p-6`, `mt-14`, `mt-8`, `mt-12`, `mt-10`, `mt-6`, `mt-4` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `focus-visible:ring-offset-2 focus-visible:ring-offset-surface`, `active:translate-y-0 active:duration-75` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `text-accent`, `bg-accent`, `focus-visible:ring-accent`, `landing-gradient` |
+
+**Pattern notes:**
+Auth pages use the standard Navbar above a centered split card and the standard Footer below it: soft page background, rounded outer card, gradient left narrative panel with a security badge, and a clean right provider panel. Callback status content may use an inner `rounded-xl border border-border bg-surface p-6 shadow-sm` card and a compact accent CTA for recovery.
+
+### Protected Placeholders
+
+File: app/dashboard/page.tsx, app/profile/page.tsx, app/find-jobs/page.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-background`, `bg-surface` |
+| Border           | `border-x border-border`, `border border-border` |
+| Border radius    | `rounded-xl` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-text-primary` |
+| Text — secondary | `text-[14px] font-normal leading-5`, `text-text-secondary` |
+| Spacing          | `px-8 py-8`, `p-6`, `gap-4`, `mt-2` |
+| Hover state      | none |
+| Shadow           | `shadow-sm` |
+| Accent usage     | none |
+
+**Pattern notes:**
+These are temporary protected-route placeholders for Auth verification. Later full dashboard, profile, and find-jobs features should replace them with their planned complete UI while keeping the same page background, centered max-width, and card baseline. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
+
+### LogoutButton
+
+File: components/auth/LogoutButton.tsx
+Last updated: 2026-06-09
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `hover:bg-surface-secondary` |
+| Border           | `border border-border`, `hover:border-accent` |
+| Border radius    | `rounded-md` |
+| Text — primary   | `text-[14px] font-medium leading-5`, `text-text-primary`, `hover:text-accent`, `text-error` |
+| Text — secondary | none |
+| Spacing          | `gap-2`, `min-h-10`, `px-4` |
+| Hover state      | `transition-[background-color,border-color,box-shadow,transform]`, `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-surface-secondary`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `focus-visible:ring-offset-2 focus-visible:ring-offset-surface`, `disabled:opacity-60`, `active:translate-y-0 active:duration-75` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `hover:border-accent`, `hover:text-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+Logout uses the same restrained secondary-button treatment as OAuth provider buttons, with an icon-leading action label and a small inline error state.
