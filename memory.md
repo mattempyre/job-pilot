@@ -1,58 +1,54 @@
-# Memory — Auth, Security Hardening, and Imprint
+# Memory — PostHog Initialization and Review Fixes
 
-Last updated: 2026-06-09 21:24 CEST
+Last updated: 2026-06-09 22:19 CEST
 
 ## What was built
 
-Completed Phase 1 Feature 02 Auth and follow-up hardening work:
+Completed Phase 1 Feature 03 PostHog Initialization and follow-up review fixes:
 
-- Created auth UI and flow in `app/(auth)/login/page.tsx`, `app/(auth)/callback/page.tsx`, and `components/auth/OAuthButtons.tsx`.
-- Added protected placeholder pages for `app/dashboard/page.tsx`, `app/profile/page.tsx`, and `app/find-jobs/page.tsx`.
-- Added `components/auth/LogoutButton.tsx` and placed it on the profile placeholder.
-- Added InsForge helpers in `lib/insforge-client.ts`, `lib/insforge-server.ts`, and `lib/insforge-auth.ts`.
-- Added auth API routes under `app/api/auth/`: OAuth start, OAuth callback, refresh, and logout.
-- Added Next.js 16 `proxy.ts` protection for `/dashboard`, `/profile`, and `/find-jobs`, plus auth-route redirects back to `/profile` when signed in.
-- Added `lib/security.ts` with same-origin auth POST checks, generic API errors, and bounded in-memory rate limiting.
-- Added global security headers and disabled `X-Powered-By` in `next.config.ts`.
-- Added `package.json` npm override so Next's transitive PostCSS resolves to patched `8.5.10`; `package-lock.json` was refreshed.
-- Updated `context/progress-tracker.md` and `context/ui-registry.md`; `/imprint` was run for the auth pages/buttons/profile placeholder patterns.
+- Added PostHog dependencies `posthog-js` and `posthog-node` to `package.json`; `package-lock.json` was refreshed.
+- Added `instrumentation-client.ts` to initialize PostHog before the Next.js App Router app becomes interactive.
+- Added `lib/posthog-client.ts`, `lib/posthog-server.ts`, and `lib/posthog-events.ts`.
+- Wired OAuth success identity through `app/(auth)/callback/page.tsx` and `app/api/auth/oauth/callback/route.ts`.
+- Wired logout identity reset through `components/auth/LogoutButton.tsx`.
+- Configured the PostHog browser client to use same-origin `/ingest` rewrites in `next.config.ts`.
+- Added `posthog-setup-report.md` documenting the current PostHog setup.
+- Updated `context/build-plan.md`, `context/progress-tracker.md`, and `context/ui-registry.md`.
 
 ## Decisions made
 
-- Auth uses the installed `@insforge/sdk` package and its SSR helpers from `@insforge/sdk/ssr`; `@insforge/ssr` is not a separate published package for this project.
-- OAuth PKCE verifier is stored in an app-owned httpOnly cookie during provider redirect, then exchanged server-side in `/api/auth/oauth/callback`.
-- Successful OAuth callback always redirects to `/profile`; authenticated visits to `/login` and `/callback` are also redirected to `/profile`.
-- Logout clears both the browser SDK session and app-owned InsForge auth cookies through `/api/auth/logout`.
-- Global security headers are configured in `next.config.ts`; CSP allows the InsForge API URL from `NEXT_PUBLIC_INSFORGE_URL`.
-- The current rate limiter is an in-process baseline. A shared backing store is needed later if strict throttling is required across multiple server instances.
+- Use the PostHog wizard/Next.js `instrumentation-client.ts` initialization path instead of a root-layout provider.
+- Keep browser ingestion behind the app's `/ingest` reverse proxy; `ui_host` points to the real PostHog app host.
+- `NEXT_PUBLIC_POSTHOG_KEY` is the canonical runtime env var. Local `.env.local` aliases it to the wizard-created `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`.
+- SDK autocapture is disabled. Only explicit project-approved custom events should be sent.
+- Logout does not send a custom event; it only calls `posthog.reset()`.
+- The only approved custom events remain `job_search_started`, `job_found`, `profile_completed`, and `company_researched`.
+- Generic capture helpers are internal; future code should use the named client/server helpers for each approved event.
 
 ## Problems solved
 
-- Login design was corrected to match the supplied split-card reference while preserving the top navbar and footer.
-- Google/GitHub OAuth initialization error was fixed by using SDK `skipBrowserRedirect: true`, storing the PKCE verifier server-side, and redirecting manually.
-- Post-login navigation incorrectly landed on `/login?next=%2Fdashboard`; callback flow now establishes server auth cookies and routes to `/profile`.
-- Removed an unsafe open token-to-session endpoint from the earlier auth pass.
-- Security audit originally found a moderate PostCSS vulnerability inside Next's bundled dependency; npm's suggested fix was a breaking downgrade, so the safe local resolution is the targeted npm override to `postcss@8.5.10`.
+- The PostHog wizard had added out-of-contract events (`cta_clicked`, `oauth_provider_selected`, `sign_in_completed`, `sign_in_failed`, `sign_out_completed`). These were removed.
+- Browser remote config originally failed because the client used direct `https://eu.i.posthog.com` ingestion while rewrites existed. The client now uses `api_host: "/ingest"`.
+- `/ingest/flags/?v=2` and `/ingest/static/array.js` were verified to return `200` on the existing local dev server.
+- A review found SDK autocapture, split env naming, exported generic capture helpers, and docs mismatch. These were fixed.
 
 ## Current state
 
-- `context/progress-tracker.md` says Phase 1 Feature 02 Auth is complete and the next planned item is Feature 03 PostHog Initialization.
-- Latest verification passed:
+- `context/progress-tracker.md` says Phase 1 Feature 03 PostHog Initialization is complete and the next planned item is Feature 04 Database Schema.
+- Current verification passed:
   - `npm run lint`
+  - `npx tsc --noEmit`
   - `npm run build`
-  - `npm audit --audit-level=moderate`
-- Route smoke tests passed on `http://localhost:3000`:
-  - `/login` returns security headers and no `X-Powered-By`.
-  - Cross-origin auth/logout POSTs return `403`.
-  - Same-origin OAuth start returns `200` and sets the httpOnly verifier cookie.
-  - Same-origin logout returns `200` and clears InsForge cookies.
-- Current auth/security changes are uncommitted in the working tree.
+- The running dev server must be restarted after the latest `.env.local` and `next.config.ts` changes.
+- Working tree is dirty and uncommitted. It includes Auth/Security work from the prior memory plus PostHog changes from this session.
+- `.env.local` is gitignored and contains the local PostHog key alias.
 
 ## Next session starts with
 
-Start Phase 1 Feature 03 PostHog Initialization. Before implementing, read the required context files from `AGENTS.md`, check the installed Next.js 16 docs relevant to analytics/script/client setup, and inspect `context/build-plan.md` for the expected PostHog scope.
+Run `/remember restore`, then decide whether to commit the accumulated Auth/Security/PostHog work or continue with Phase 1 Feature 04 Database Schema. If continuing, read the required context files and use InsForge MCP/docs before schema work.
 
 ## Open questions
 
-- Should the completed Auth/Security changes be committed before starting PostHog?
-- Should rate limiting stay in-process for now, or should the project introduce shared rate-limit storage before deployment?
+- Should the completed Auth/Security/PostHog changes be committed before starting the database schema?
+- Should PostHog autocapture stay permanently disabled, or only while the project keeps the four-event contract?
+- Should the in-process auth rate limiter be replaced with shared storage before deployment?

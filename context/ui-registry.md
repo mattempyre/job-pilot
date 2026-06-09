@@ -18,6 +18,11 @@ After building any component — update this file with the component name, file 
 
 ## Components
 
+## Non-UI Feature Notes
+
+- 2026-06-09 — PostHog initialization added no new visible UI components and made no class changes to existing components. Homepage CTA components returned to Server Components after removing wizard-only analytics click handlers.
+- 2026-06-09 — PostHog review fixes changed no visible UI. Autocapture was disabled and helper exports were tightened in analytics code only.
+
 ### Navbar
 
 File: components/layout/Navbar.tsx

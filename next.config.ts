@@ -1,14 +1,39 @@
 import type { NextConfig } from "next";
 
 const insforgeUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
+const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+const posthogAssetsHost = posthogHost?.includes("us.i.posthog.com")
+  ? "https://us-assets.i.posthog.com"
+  : "https://eu-assets.i.posthog.com";
 const isDev = process.env.NODE_ENV !== "production";
 const scriptSrc = isDev
   ? "'self' 'unsafe-inline' 'unsafe-eval'"
   : "'self' 'unsafe-inline'";
-const connectSrc = ["'self'", ...(insforgeUrl ? [insforgeUrl] : [])].join(" ");
+const connectSrc = [
+  "'self'",
+  ...(insforgeUrl ? [insforgeUrl] : []),
+  ...(posthogHost ? [posthogHost] : []),
+].join(" ");
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      {
+        source: "/ingest/static/:path*",
+        destination: `${posthogAssetsHost}/static/:path*`,
+      },
+      {
+        source: "/ingest/array/:path*",
+        destination: `${posthogAssetsHost}/array/:path*`,
+      },
+      {
+        source: "/ingest/:path*",
+        destination: `${posthogHost ?? "https://eu.i.posthog.com"}/:path*`,
+      },
+    ];
+  },
   async headers() {
     return [
       {

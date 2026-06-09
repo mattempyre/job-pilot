@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { getInsforgeBrowserClient } from "@/lib/insforge-client";
+import { resetPostHogUser } from "@/lib/posthog-client";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -31,6 +32,8 @@ export function LogoutButton() {
       if (!response.ok) {
         throw new Error("Logout route failed.");
       }
+
+      resetPostHogUser();
 
       router.replace("/login");
       router.refresh();

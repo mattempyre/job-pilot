@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
 import { getInsforgePublicConfigError } from "@/lib/insforge-client";
+import { identifyPostHogUser } from "@/lib/posthog-client";
 
-async function completeOAuthCallback(code: string): Promise<void> {
+async function completeOAuthCallback(code: string): Promise<string> {
   const response = await fetch("/api/auth/oauth/callback", {
     method: "POST",
     headers: {
@@ -21,6 +22,9 @@ async function completeOAuthCallback(code: string): Promise<void> {
   if (!response.ok) {
     throw new Error("Could not complete OAuth callback.");
   }
+
+  const json = (await response.json()) as { data?: { userId?: string } };
+  return json.data?.userId ?? "";
 }
 
 export default function CallbackPage() {
@@ -47,9 +51,10 @@ export default function CallbackPage() {
       }
 
       let callbackError: unknown = null;
+      let userId = "";
 
       try {
-        await completeOAuthCallback(code);
+        userId = await completeOAuthCallback(code);
       } catch (caughtError) {
         callbackError = caughtError;
       }
@@ -62,6 +67,10 @@ export default function CallbackPage() {
         console.error("[auth/callback]", callbackError);
         setErrorMessage("Sign in could not be completed. Please try again.");
         return;
+      }
+
+      if (userId) {
+        identifyPostHogUser(userId);
       }
 
       router.replace("/profile");

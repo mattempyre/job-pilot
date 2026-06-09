@@ -6,6 +6,7 @@ import {
   oauthVerifierCookieOptions,
 } from "@/lib/insforge-auth";
 import { createInsforgeServer } from "@/lib/insforge-server";
+import { identifyPostHogServerUser } from "@/lib/posthog-server";
 import {
   enforceRateLimit,
   forbiddenResponse,
@@ -79,6 +80,8 @@ export async function POST(request: NextRequest) {
         { status: 401 },
       );
     }
+
+    await identifyPostHogServerUser(data.user.id);
 
     const response = NextResponse.json({
       success: true,
