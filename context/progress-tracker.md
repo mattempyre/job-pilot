@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** Phase 2 — Profile Page
-**Last completed:** 05 Profile Page — Full UI
-**Next:** 06 Profile Save Logic
+**Last completed:** 06 Profile Save Logic
+**Next:** 07 AI Profile Extraction from Resume
 
 ---
 
@@ -24,7 +24,7 @@ Update this file after every completed feature. Any AI agent reading this should
 ### Phase 2 — Profile Page
 
 - [x] 05 Profile Page — Full UI
-- [ ] 06 Profile Save Logic
+- [x] 06 Profile Save Logic
 - [ ] 07 AI Profile Extraction from Resume
 - [ ] 08 Resume PDF Generation from Profile
 
@@ -55,6 +55,11 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-09 — Feature 04 review fix: search jobs now cascade when their `agent_runs` row is deleted, and profile resume keys are constrained to `resumes/{user_id}/...`.
 - 2026-06-09 — Feature 05 is UI-only with mock profile data. It intentionally does not wire save logic, file upload, resume extraction, PDF generation, or InsForge reads/writes.
 - 2026-06-09 — Playwright is installed as a dev-only browser verification dependency, with Chromium installed locally for repeatable profile page screenshots.
+- 2026-06-10 — Feature 06 uses independent save paths: profile fields save through a Server Action, while resume PDFs upload through `/api/resume/upload` with real XHR upload progress before InsForge storage/DB processing completes.
+- 2026-06-10 — Feature 06 stores only `profiles.is_complete`; completion percentage, completed labels, and missing-field labels are derived in app code from the shared required-field checklist.
+- 2026-06-10 — The profile email is the user's application contact email, not necessarily their authentication email. New profiles prefill it from auth email, but the field remains editable and the submitted value is persisted.
+- 2026-06-10 — Profile education is repeatable without a DB migration. `profiles.education` remains an object-shaped JSON column and stores `{ entries: EducationEntry[] }`; legacy singular education objects are normalized into a one-entry array in app code.
+- 2026-06-10 — Profile role and education ordering is persisted through the existing JSON array order. Reordering uses Atlassian Pragmatic Drag and Drop with handle-only dragging plus keyboard move controls; no database migration is required.
 
 ---
 
@@ -76,3 +81,13 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-09 — Database Schema completed. Created and applied `profiles`, `agent_runs`, `jobs`, and `agent_logs` with foreign keys, check constraints, indexes, authenticated own-row RLS policies, and a `profiles` updated-at trigger. Created private InsForge `resumes` storage bucket.
 - 2026-06-09 — Database Schema review fixes applied after `/review`: changed `jobs.run_id` from `ON DELETE SET NULL` to `ON DELETE CASCADE`, and added `profiles_resume_key_matches_user`.
 - 2026-06-09 — Profile Page Full UI completed. `/profile` now renders mock completion status, resume upload/generation controls, and full semantic profile form sections through `CompletionIndicator`, `ResumeUpload`, and `ProfileForm`. Verified with lint, TypeScript, token scan, and Playwright desktop/mobile screenshots with no horizontal overflow.
+- 2026-06-10 — Profile Page Full UI follow-up: top profile cards now stack vertically, and `/profile` includes a mock Connected Accounts card for LinkedIn above the Resume section. This remains UI-only; no LinkedIn OAuth or workflow logic is wired.
+- 2026-06-10 — Profile Save Logic completed. `/profile` now loads the authenticated user's InsForge profile row, pre-fills the form from saved data, saves profile fields to `profiles`, uploads/replaces active resume PDFs independently in the private `resumes` bucket, cleans up the previous referenced resume object after successful replacement, recalculates completion after both mutation paths, and fires `profile_completed` only on incomplete-to-complete transitions.
+- 2026-06-10 — Profile Save Logic follow-up: Education now supports unlimited add/remove education cards, serializes entries through the profile form, and saves them as `education.entries`. Completion is satisfied when at least one education entry is complete.
+- 2026-06-10 — Profile Save Logic follow-up: Work Experience and Education cards can be reordered with drag handles or move up/down buttons when more than one card exists. Save persists the reordered array order through the existing profile form payload.
+- 2026-06-10 — Profile Save Logic follow-up: `/profile` now debounces unsaved form edits into user-scoped browser localStorage, restores them after refresh, and clears the local draft after a successful profile save.
+- 2026-06-10 — Profile Save Logic follow-up: the Ready to save action section is now a fixed bottom floating bar with tokenized translucent surface, backdrop blur, and glass-style shadow treatment.
+- 2026-06-10 — Profile Save Logic follow-up: profile completion now exposes stable missing-item keys, missing badges jump to their matching form targets, and `/profile` shows live inline missing indicators on required fields, groups, and resume upload.
+- 2026-06-10 — Profile Save Logic follow-up: deleting populated Work Experience or Education cards now opens an in-app confirmation dialog, while empty cards still remove immediately.
+- 2026-06-10 — Profile Save Logic security hardening: profile form mutations now enforce server-side field, array, role, and education payload caps; Server Action bodies are limited to `512kb`; resume uploads validate the PDF magic bytes and only delete prior resume objects under the authenticated user's key prefix.
+- 2026-06-10 — Profile UX polish follow-up: protected mobile pages now include a tokenized bottom navigation, `/profile` positions its sticky save bar above that nav on mobile, profile sections show icon-leading headers with completion chips, role and education cards support multi-card collapse with summaries, populated-card deletion uses a focus-trapped dialog, and resume replacement asks for inline confirmation.

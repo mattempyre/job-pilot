@@ -155,6 +155,36 @@ const resumePdfKey = data.key;
 
 ---
 
+## Atlassian Pragmatic Drag and Drop
+
+**Check first:** Use the official Atlassian Design docs for current entrypoints and optional packages before editing drag-and-drop behavior.
+
+Profile form reordering uses:
+
+```typescript
+import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
+import {
+  draggable,
+  dropTargetForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
+import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
+import {
+  attachClosestEdge,
+  extractClosestEdge,
+} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
+```
+
+**Rules:**
+
+- Keep drag registration inside Client Components.
+- Use a dedicated drag handle when the draggable card contains form inputs.
+- Use `@atlaskit/pragmatic-drag-and-drop-hitbox` for top/bottom edge detection.
+- Do not add `@atlaskit/pragmatic-drag-and-drop-react-drop-indicator`; build tokenized local indicators instead.
+- Pair pointer drag with keyboard-accessible move buttons and an `aria-live` announcement.
+- Persist order by saving the reordered JSON arrays; do not add order columns while roles and education remain embedded profile JSON.
+
+---
+
 ## Adzuna API
 
 **Check first:** Check AGENTS.md for an installed Adzuna skill. If none exists — use this file and the official Adzuna API docs.
@@ -694,6 +724,29 @@ export async function POST(req: NextRequest) {
 - `pdfData.text` is raw unformatted text — GPT-4o handles the structure extraction
 - Always handle parse errors — some PDFs are image-based and return empty text
 - If `pdfData.text` is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
+
+---
+
+## Next.js Server Actions
+
+**Check first:** Read `node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/serverActions.md` before changing Server Action configuration.
+
+Server Actions are treated as public mutation boundaries. Next.js 16 compares `Origin` with `Host` / `X-Forwarded-Host` for CSRF protection by default, and this project also configures:
+
+```ts
+experimental: {
+  serverActions: {
+    bodySizeLimit: "512kb",
+  },
+}
+```
+
+**Rules:**
+
+- Re-verify authentication and authorization inside every Server Action.
+- Validate and bound all `FormData` values server-side; hidden fields are untrusted input.
+- Keep profile-style form payloads below the configured `512kb` limit.
+- Do not add `serverActions.allowedOrigins` unless the deployment topology requires it and the allowed origin is reviewed.
 
 ---
 

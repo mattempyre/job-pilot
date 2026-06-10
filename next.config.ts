@@ -16,6 +16,11 @@ const connectSrc = [
 ].join(" ");
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "512kb",
+    },
+  },
   poweredByHeader: false,
   skipTrailingSlashRedirect: true,
   async rewrites() {

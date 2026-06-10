@@ -20,6 +20,9 @@ After building any component — update this file with the component name, file 
 
 ## Non-UI Feature Notes
 
+- 2026-06-10 — Profile Save Logic security hardening changed no visible UI. Profile mutations now cap server-side field lengths/array sizes, Server Action bodies are limited to `512kb`, resume uploads validate the PDF signature, and resume replacement only removes previous keys under the authenticated user's storage prefix.
+- 2026-06-10 — Profile Save Logic added real InsForge persistence and independent resume upload behavior. New backend surfaces are `actions/profile.ts`, `app/api/resume/upload/route.ts`, and shared profile normalization/completion helpers in `lib/profile.ts`.
+- 2026-06-10 — Repeatable education support changed no database schema. `profiles.education` now stores an object wrapper with `entries`, while legacy singular education objects remain readable through app normalization.
 - 2026-06-09 — Database Schema review fixes changed no visible UI. The migration and docs were tightened for agent-run deletion and resume key ownership constraints.
 - 2026-06-09 — Database Schema added no visible UI components and made no class changes. Feature 04 created the initial InsForge app schema, private `resumes` bucket, and schema docs only.
 - 2026-06-09 — PostHog initialization added no new visible UI components and made no class changes to existing components. Homepage CTA components returned to Server Components after removing wizard-only analytics click handlers.
@@ -44,6 +47,26 @@ Last updated: 2026-06-08
 
 **Pattern notes:**
 Navbar uses the project logo asset, a centered `max-w-[1280px]` row, hidden mobile nav links, and a dark primary CTA. Future top navs should preserve the white surface, bottom border, and `text-text-slate` link treatment.
+
+### MobileBottomNav
+
+File: components/layout/MobileBottomNav.tsx
+Last updated: 2026-06-10
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface/80`, `bg-accent-muted`, `hover:bg-surface-secondary` |
+| Border           | `border-t border-border/80` |
+| Border radius    | `rounded-md` |
+| Text — primary   | `text-[12px] font-medium leading-4`, `text-accent`, `text-text-secondary` |
+| Text — secondary | none |
+| Spacing          | `px-4`, `pt-3`, `gap-2`, `gap-1`, `px-3` |
+| Hover state      | `transition-[background-color,color,box-shadow]`, `hover:bg-surface-secondary`, `hover:text-accent`, `focus-visible:ring-2 focus-visible:ring-accent` |
+| Shadow           | `shadow-sm`, `shadow-[0_-18px_55px_color-mix(in_srgb,var(--color-overlay)_16%,transparent)]` |
+| Accent usage     | `bg-accent-muted`, `text-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+Mobile bottom navigation is protected-route only and hidden at `md`. It uses compact icon-over-label links, active `aria-current="page"` state, tokenized glass surface, and safe-area bottom padding. Keep page-level mobile bottom padding in protected routes so content is not hidden by the fixed nav.
 
 ### Footer
 
@@ -208,7 +231,7 @@ Auth pages use the standard Navbar above a centered split card and the standard 
 ### Protected Placeholders
 
 File: app/dashboard/page.tsx, app/find-jobs/page.tsx
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 | Property         | Class           |
 | ---------------- | --------------- |
@@ -223,7 +246,7 @@ Last updated: 2026-06-09
 | Accent usage     | none |
 
 **Pattern notes:**
-These are temporary protected-route placeholders for Auth verification. Later full dashboard and find-jobs features should replace them with their planned complete UI while keeping the same page background, centered max-width, and card baseline. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
+These are temporary protected-route placeholders for Auth verification. Later full dashboard and find-jobs features should replace them with their planned complete UI while keeping the same page background, centered max-width, card baseline, and mobile bottom-nav padding. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
 
 ### LogoutButton
 
@@ -248,7 +271,7 @@ Logout uses the same restrained secondary-button treatment as OAuth provider but
 ### Profile Page
 
 File: app/profile/page.tsx
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 | Property         | Class           |
 | ---------------- | --------------- |
@@ -263,7 +286,7 @@ Last updated: 2026-06-09
 | Accent usage     | none |
 
 **Pattern notes:**
-The full profile page keeps the protected page shell, replaces the placeholder body with a responsive two-column status/resume area, and keeps the page file composition-only. Future protected full-page UIs should preserve the `bg-background` shell, centered `max-w-[1280px]`, and `rounded-xl border border-border bg-surface p-6 shadow-sm` section baseline.
+The full profile page keeps the protected page shell, stacks the profile status, connected account, and resume management cards above the form, and now loads real authenticated profile data server-side before passing initial values to client editors. Future protected full-page UIs should preserve the `bg-background` shell, centered `max-w-[1280px]`, and `rounded-xl border border-border bg-surface p-6 shadow-sm` section baseline.
 
 ### CompletionIndicator
 
@@ -283,44 +306,64 @@ Last updated: 2026-06-09
 | Accent usage     | `text-accent`, `bg-accent-muted`, `stroke-current`, `stroke-border` |
 
 **Pattern notes:**
-Completion status uses the standard card shell with a compact icon tile, pill missing-field tags, and an SVG ring using project token colors. Similar status summaries should keep badges small, uppercase, and tokenized instead of adding colored card backgrounds.
+Completion status uses the standard card shell with a compact icon tile, clickable pill missing-item tags, and an SVG ring using project token colors. Missing tags link to stable profile form targets and should stay small, uppercase, tokenized, and aligned with the inline completion indicators.
+
+### ConnectedAccounts
+
+File: components/profile/ConnectedAccounts.tsx
+Last updated: 2026-06-10
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-linkedin-light`, `bg-linkedin` |
+| Border           | `border border-border` |
+| Border radius    | `rounded-xl`, `rounded-md` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[16px] font-medium leading-6`, `text-text-primary`, `text-linkedin-foreground` |
+| Text — secondary | `text-[14px] font-normal leading-5`, `text-text-secondary`, `text-text-muted` |
+| Spacing          | `p-6`, `p-5`, `gap-4`, `mt-2`, `mt-6`, `px-6` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-linkedin` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `bg-linkedin`, `bg-linkedin-light`, `text-linkedin` |
+
+**Pattern notes:**
+Connected account cards use the standard profile card shell with an inner account row and brand-token action button. Future provider rows should keep the outer white card, inner bordered row, status copy, and provider-specific token usage instead of raw brand colors.
 
 ### ResumeUpload
 
 File: components/profile/ResumeUpload.tsx
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 | Property         | Class           |
 | ---------------- | --------------- |
 | Background       | `bg-surface`, `bg-surface-secondary`, `bg-info-lightest`, `bg-success-lightest`, `bg-accent` |
 | Border           | `border border-border`, `border-dashed border-border`, `hover:border-accent` |
 | Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
-| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground`, `text-success`, `text-error` |
 | Text — secondary | `text-[14px] font-normal leading-5`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
-| Spacing          | `p-6`, `p-4`, `px-6 py-8`, `px-4`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1` |
-| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `active:translate-y-0 active:duration-75` |
+| Spacing          | `p-6`, `p-4`, `px-6 py-8`, `px-4`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-2`, `mt-1` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:bg-surface`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `active:translate-y-0 active:duration-75`, `disabled:opacity-60` |
 | Shadow           | `shadow-sm`, `hover:shadow-md` |
 | Accent usage     | `text-accent`, `bg-accent`, `hover:border-accent`, `focus-visible:ring-accent` |
 
 **Pattern notes:**
-Resume management uses a dashed tokenized upload panel and existing primary/secondary button treatments. Future upload surfaces should use the same `border-dashed border-border bg-surface-secondary` treatment and keep real file handling out of UI-only phases.
+Resume management uses a left icon-leading card header, dashed tokenized upload panel, real XHR upload progress, a processing state, and a success pulse before refreshing server data. Replacing an existing resume first shows a compact inline confirmation inside the upload panel. Future upload surfaces should use the same `border-dashed border-border bg-surface-secondary` treatment, tokenized error/success states, and independent upload route pattern when byte-level progress is required.
 
 ### ProfileForm
 
 File: components/profile/ProfileForm.tsx
-Last updated: 2026-06-09
+Last updated: 2026-06-10
 
 | Property         | Class           |
 | ---------------- | --------------- |
-| Background       | `bg-surface`, `bg-surface-secondary`, `bg-accent-muted`, `bg-info-lightest`, `bg-success-lightest`, `bg-accent` |
+| Background       | `bg-surface`, `bg-surface/55`, `bg-surface-secondary`, `bg-accent-muted`, `bg-info-lightest`, `bg-success-lightest`, `bg-accent`, `bg-overlay/35`, `bg-error` |
 | Border           | `border border-border`, `hover:border-accent`, `focus:border-accent` |
 | Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
-| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-semibold leading-5`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-semibold leading-5`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground`, `text-error`, `text-error-foreground`, `text-success-foreground` |
 | Text — secondary | `text-[12px] font-medium uppercase leading-4`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
-| Spacing          | `space-y-6`, `p-6`, `p-5`, `px-3 py-3`, `px-3 py-1`, `px-4`, `px-5`, `gap-5`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1` |
-| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `active:translate-y-0 active:duration-75` |
-| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Spacing          | `space-y-6`, `p-6`, `p-5`, `px-3 py-3`, `px-3 py-1`, `px-4`, `px-5`, `gap-5`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1`, `pb-72`, `md:pb-36` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `focus-visible:ring-error`, `active:translate-y-0 active:duration-75`, `disabled:opacity-60`, `cursor-grab`, `active:cursor-grabbing` |
+| Shadow           | `shadow-sm`, `hover:shadow-md`, `shadow-[0_24px_70px_color-mix(in_srgb,var(--color-overlay)_22%,transparent)]`, `shadow-[0_28px_90px_color-mix(in_srgb,var(--color-overlay)_20%,transparent),0_12px_36px_color-mix(in_srgb,var(--color-accent)_18%,transparent),0_2px_10px_color-mix(in_srgb,var(--color-overlay)_10%,transparent)]` |
 | Accent usage     | `text-accent`, `bg-accent`, `bg-accent-muted`, `focus:border-accent`, `focus:ring-accent`, `focus-visible:ring-accent` |
 
 **Pattern notes:**
-Profile form fields use semantic native controls with a shared `h-11 rounded-md border border-border bg-surface px-3 text-[14px] font-medium` baseline. Section cards use icon-leading headers, uppercase 12px labels, and tokenized chips. Until Feature 06, mutating actions stay `type="button"` with no client state.
+Profile form fields use semantic native controls with a shared `h-11 rounded-md border border-border bg-surface px-3 text-[14px] font-medium` baseline. Required completion fields are controlled and show live tokenized inline indicators with `border-accent`, `ring-accent/30`, and compact `text-accent` helper copy. Application Email is prefilled from auth email for new profiles but remains editable as the user's job-application contact email. Section cards use icon-leading headers, uppercase 12px labels, tokenized removable chips, and compact `Complete` / `Missing` section chips. Work role and education cards serialize structured arrays into hidden JSON fields, show compact card summaries, collapse only when multiple cards exist, and keep edited cards expanded. Work role cards put the current-role checkbox on the End Date label row, right-aligned on desktop; checking it clears and disables the End Date input. Work role and education cards expose reorder controls only when multiple cards exist: a drag handle, move up/down icon buttons, a tokenized drop line, and a screen-reader live announcement. Reorder controls stay quiet on desktop until hover/focus-within and remain visible on mobile. Removing a populated role or education card opens a tokenized focus-trapped in-app alert dialog before deletion; empty cards remove immediately. Unsaved edits debounce into user-scoped browser localStorage, restore after refresh, and surface explicit dirty/local/server save status text in the save card. Education cards reuse the inner `rounded-xl border border-border bg-surface-secondary p-5` treatment and support unlimited add/remove. Save feedback lives in a fixed bottom floating bar aligned to the profile content column with `bg-surface/55`, `backdrop-blur-2xl`, tokenized gradient sheen, and a glass-style token shadow; on mobile it sits above the protected bottom nav with extra form padding.

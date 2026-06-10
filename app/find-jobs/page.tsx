@@ -1,10 +1,11 @@
 import { Navbar } from "@/components/layout/Navbar";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 
 export default function FindJobsPage() {
   return (
     <main className="min-h-screen bg-background text-text-primary">
       <Navbar />
-      <div className="mx-auto max-w-[1280px] border-x border-border px-8 py-8">
+      <div className="mx-auto max-w-[1280px] border-x border-border px-8 pb-32 pt-8 md:py-8">
         <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
           <h1 className="text-[16px] font-semibold leading-6 text-text-primary">
             Find Jobs
@@ -14,6 +15,7 @@ export default function FindJobsPage() {
           </p>
         </section>
       </div>
+      <MobileBottomNav />
     </main>
   );
 }

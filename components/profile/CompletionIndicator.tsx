@@ -1,17 +1,45 @@
 import type { JSX } from "react";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
+import type { CompletionItem } from "@/lib/profile";
+
 type CompletionIndicatorProps = {
   completion: number;
   missingFields: string[];
+  missingItems: CompletionItem[];
   completedFields: string[];
+};
+
+const completionTargetIds: Record<CompletionItem["key"], string> = {
+  fullName: "profile-field-full-name",
+  email: "profile-field-email",
+  phone: "profile-field-phone",
+  location: "profile-field-location",
+  currentTitle: "profile-field-current-title",
+  experience: "profile-field-experience-level",
+  skills: "profile-field-skills",
+  workExperience: "profile-section-work-experience",
+  education: "profile-section-education",
+  jobTitlesSeeking: "profile-field-job-titles-seeking",
+  remotePreference: "profile-field-remote-preference",
+  workAuthorization: "profile-field-work-authorization",
+  resume: "profile-resume",
 };
 
 export function CompletionIndicator({
   completion,
   missingFields,
+  missingItems,
   completedFields,
 }: CompletionIndicatorProps): JSX.Element {
+  const items =
+    missingItems.length > 0
+      ? missingItems
+      : missingFields.map((field) => ({
+          key: field as CompletionItem["key"],
+          label: field,
+        }));
+
   return (
     <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -25,18 +53,19 @@ export function CompletionIndicator({
               Profile needs attention
             </h2>
             <p className="mt-2 max-w-[540px] text-[14px] font-normal leading-5 text-text-secondary">
-              Complete the highlighted fields so JobPilot can score matches
+              Complete the missing items below so JobPilot can score matches
               against the profile recruiters will actually see.
             </p>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {missingFields.map((field) => (
-                <span
-                  key={field}
-                  className="rounded-full bg-accent-muted px-3 py-1 text-[12px] font-medium leading-4 text-accent"
+              {items.map((item) => (
+                <a
+                  key={item.label}
+                  className="rounded-full bg-accent-muted px-3 py-1 text-[12px] font-medium leading-4 text-accent transition-[background-color,box-shadow] hover:bg-accent-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  href={`#${completionTargetIds[item.key] ?? "profile-form"}`}
                 >
-                  {field}
-                </span>
+                  {item.label}
+                </a>
               ))}
             </div>
           </div>
