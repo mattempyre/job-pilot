@@ -53,9 +53,13 @@
 │       │   ├── find/route.ts              → Trigger Adzuna job discovery
 │       │   └── research/route.ts          → Trigger company research agent
 │       ├── resume/
+│       │   ├── upload/route.ts            → Upload active resume PDF to storage
 │       │   ├── generate/route.ts          → Generate base resume PDF from profile
+│       │   ├── current/route.ts           → Authenticated inline review of active private resume
 │       │   └── extract/route.ts           → Extract profile data from uploaded resume PDF
 ├── agent/
+│   ├── resume-generation.ts               → GPT-4o profile to polished resume content generation
+│   ├── resume-extraction.ts               → GPT-4o resume text to profile JSON extraction
 │   ├── adzuna.ts                          → Adzuna API job discovery + GPT-4o scoring
 │   ├── research.ts                        → Company research — Browserbase + Stagehand + GPT-4o
 │   ├── matcher.ts                         → GPT-4o job matching logic
@@ -79,6 +83,7 @@
 │   │   ├── RecentActivity.tsx
 │   │   └── AnalyticsCharts.tsx
 │   ├── profile/
+│   │   ├── ProfileEditor.tsx
 │   │   ├── ProfileForm.tsx
 │   │   ├── ResumeUpload.tsx
 │   │   ├── ResumePreview.tsx
@@ -97,6 +102,12 @@
 ├── lib/
 │   ├── insforge-client.ts                 → InsForge browser client instance
 │   ├── insforge-server.ts                 → InsForge server client
+│   ├── auth-session.ts                    → Server-side current-user lookup with dev-only e2e auth support
+│   ├── e2e-auth.ts                        → Playwright-only auth cookie/env gate
+│   ├── e2e-profile.ts                     → Playwright-only fixture profile store
+│   ├── profile.ts                         → Profile normalization, validation, and completion helpers
+│   ├── resume-renderer.tsx                → Server-only @react-pdf resume PDF rendering
+│   ├── resume-pdf.ts                      → Server-only PDF text parsing helpers
 │   ├── browserbase.ts                     → Browserbase session creation + management
 │   ├── stagehand.ts                       → Stagehand initialisation with Browserbase session
 │   ├── adzuna.ts                          → Adzuna API client
@@ -114,7 +125,7 @@
 | Folder        | Owns                                                                                                   |
 | ------------- | ------------------------------------------------------------------------------------------------------ |
 | `app/`        | Pages and API routes only. No business logic.                                                          |
-| `agent/`      | All agent logic. Adzuna discovery, company research, matching, extraction. Nothing here touches React. |
+| `agent/`      | All agent logic. Adzuna discovery, company research, matching, extraction, resume generation. Nothing here touches React. |
 | `actions/`    | Server Actions for UI-triggered mutations only. Profile save, profile update.                          |
 | `components/` | UI only. No data fetching logic. No direct DB calls.                                                   |
 | `lib/`        | Third party client initialisation and shared utilities only.                                           |
@@ -190,6 +201,56 @@ New PDF uploaded to InsForge Storage
 URL and object key saved to profiles table
 ```
 
+### Resume Review
+
+```
+User clicks Review Current Resume
+        ↓
+GET app/api/resume/current authenticates the user
+        ↓
+Route loads the user's active resume_pdf_key from profiles
+        ↓
+Route verifies the key is under resumes/{user_id}/
+        ↓
+Private PDF is downloaded from InsForge Storage
+        ↓
+Route streams application/pdf inline with private no-store cache headers
+```
+
+### Profile Extraction
+
+```
+User clicks Extract from Resume
+        ↓
+ResumeUpload calls app/api/resume/extract
+        ↓
+Route downloads authenticated user's active private resume from InsForge Storage
+        ↓
+pdf-parse extracts raw text, GPT-4o returns structured profile JSON
+        ↓
+ProfileEditor applies extracted data directly into ProfileForm
+        ↓
+User reviews the filled fields and manually saves profile through existing Server Action
+```
+
+### Playwright E2E Auth Mode
+
+Local browser tests can bypass external OAuth by enabling `JOB_PILOT_E2E_AUTH=1` and setting the `jobpilot_e2e_auth=1` cookie. This mode is disabled when `NODE_ENV=production`.
+
+```
+Playwright sets e2e auth + profile-scenario cookies
+        ↓
+proxy.ts treats protected routes as authenticated without InsForge cookies
+        ↓
+lib/auth-session.ts returns the fixture user
+        ↓
+lib/e2e-profile.ts serves fixture profile rows and deterministic extraction data
+        ↓
+Profile UI, Server Actions, and resume APIs run through the normal browser surfaces
+```
+
+Supported profile scenario cookie values: `blank`, `resume`, and `populated`.
+
 ---
 
 ## InsForge Database Schema
@@ -211,7 +272,7 @@ URL and object key saved to profiles table
 | work_experience     | jsonb       | Array of up to 3 roles                       |
 | education           | jsonb       | Object with `entries` array of degree/program records |
 | job_titles_seeking  | text[]      | Roles they want                              |
-| remote_preference   | text        | remote / onsite / hybrid / any               |
+| remote_preference   | text        | Comma-separated remote / onsite / hybrid values, or any by itself |
 | preferred_locations | text[]      | Optional preferred locations                 |
 | salary_expectation  | text        | Optional                                     |
 | cover_letter_tone   | text        | formal / casual / enthusiastic               |
@@ -220,6 +281,8 @@ URL and object key saved to profiles table
 | work_authorization  | text        | citizen / permanent_resident / visa_required |
 | resume_pdf_url      | text        | InsForge Storage URL of current resume       |
 | resume_pdf_key      | text        | InsForge Storage object key of current resume |
+| resume_extracted_pdf_key | text   | Active resume key that has already produced a successful profile extraction |
+| resume_extracted_at | timestamptz | Last successful extraction timestamp for the active resume marker |
 | is_complete         | boolean     | True when all required fields filled         |
 | created_at          | timestamptz |                                              |
 | updated_at          | timestamptz |                                              |

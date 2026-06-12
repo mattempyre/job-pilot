@@ -94,7 +94,7 @@ Build the complete profile page UI with mock data. No save logic yet.
   - Professional Info — Current Job Title, Experience Level dropdown, Years of Experience, Skills tag input with Add button, Industries tag input with Add button
   - Work Experience — up to 3 roles, each with Company Name, Job Title, Start Date, End Date, Currently working here checkbox, Key Responsibilities textarea. Add role button.
   - Education — Highest Degree dropdown, Field of Study, Institution Name, Graduation Year
-  - Job Preferences — Job Titles Seeking, Remote Preference dropdown, Salary Expectation, Preferred Locations, Cover Letter Tone dropdown
+  - Job Preferences — Job Titles Seeking, Remote Preference multi-select, Salary Expectation, Preferred Locations, Cover Letter Tone dropdown
 - Save Profile button at bottom
 
 ---
@@ -117,21 +117,25 @@ Wire profile form to InsForge DB.
 
 ### 07 AI Profile Extraction from Resume
 
-Extract from Resume button — GPT-4o reads uploaded PDF and auto-fills profile form fields.
+Extract from Resume button — GPT-4o reads uploaded PDF and fills matching profile form fields for review before manual save.
 
 **UI:**
 
 - Extract from Resume button appears after resume is uploaded
 - Loading state while processing
-- Form fields populate automatically after extraction
+- Success copy after extraction: "Profile fields filled in. Review and save below."
 - User reviews and edits if needed before saving
 
 **Logic:**
 
-- pdf-parse extracts raw text from uploaded PDF buffer
+- POST /api/resume/extract reads the active private resume from InsForge Storage
+- pdf-parse extracts raw text from the downloaded active PDF buffer
 - If extracted text is empty or too short — return error: "Could not extract text from this PDF. Please try a different file."
 - GPT-4o reads extracted text and returns structured JSON matching all profile field names
-- Form fields populated with extracted data
+- Extracted JSON is validated and returned to the client without writing profile fields to the database
+- A successful extraction records `profiles.resume_extracted_pdf_key`; the same active PDF cannot be extracted again until a new resume is uploaded
+- Job Titles Seeking is seeded from resume-stated target roles, or from the extracted current title and newest few role titles when no explicit target roles are present
+- Extracted non-empty fields overwrite the current local form draft, including list fields and populated Work Experience or Education sections
 - User saves manually after reviewing
 
 ---
@@ -148,7 +152,7 @@ Generate a clean professional PDF resume from current profile data using GPT-4o.
   - Professional summary paragraph
   - Polished work experience bullet points
   - Clean professional language throughout
-- @react-pdf/renderer renders GPT-4o output into clean single-page PDF using renderToBuffer()
+- @react-pdf/renderer renders GPT-4o output into a clean controlled one to two page PDF using renderToBuffer()
 - Buffer uploaded to InsForge Storage under resumes/{user_id}/
 - resume_pdf_url and resume_pdf_key updated in profiles table
 

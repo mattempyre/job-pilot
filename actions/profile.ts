@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { getCurrentUserSession } from "@/lib/auth-session";
+import { saveE2EProfileValues } from "@/lib/e2e-profile";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { captureProfileCompletedEvent } from "@/lib/posthog-server";
 import {
@@ -23,13 +25,10 @@ export async function saveProfile(
   formData: FormData,
 ): Promise<SaveProfileState> {
   try {
-    const insforge = await createInsforgeServer();
-    const {
-      data: { user },
-      error: userError,
-    } = await insforge.auth.getCurrentUser();
+    const session = await getCurrentUserSession();
+    const user = session.user;
 
-    if (userError || !user) {
+    if (session.error || !user) {
       return {
         success: false,
         error: "Please sign in again before saving your profile.",
@@ -37,6 +36,27 @@ export async function saveProfile(
       };
     }
 
+    if (session.isE2E) {
+      const values = parseProfileFormData(formData);
+      const email = values.email || user.email || "";
+      const profile = saveE2EProfileValues(session, { ...values, email });
+      const completion = calculateCompletion(
+        { ...values, email },
+        Boolean(profile.resume_pdf_key),
+      );
+
+      revalidatePath("/profile");
+
+      return {
+        success: true,
+        error: null,
+        message: completion.isComplete
+          ? "Profile saved and ready for matching."
+          : "Profile saved. Complete the missing profile items when you are ready.",
+      };
+    }
+
+    const insforge = await createInsforgeServer();
     const { data: existingData, error: existingError } =
       await insforge.database
         .from("profiles")

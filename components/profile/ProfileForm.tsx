@@ -12,9 +12,11 @@ import {
   type Edge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import {
+  forwardRef,
   useActionState,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -47,6 +49,7 @@ import type {
   CompletionFieldKey,
   CompletionItem,
   EducationEntry,
+  ExtractedProfileData,
   JobPreferences,
   PersonalInfo,
   ProfessionalInfo,
@@ -61,6 +64,7 @@ type ProfileFormProps = {
   education: EducationEntry[];
   jobPreferences: JobPreferences;
   missingItems: CompletionItem[];
+  onDirtyChange?: (isDirty: boolean) => void;
 };
 
 type ArrayFieldKind = "skills" | "industries" | "jobTitles" | "locations";
@@ -102,7 +106,6 @@ type ProfileDraftFieldName =
   | "currentTitle"
   | "experienceLevel"
   | "yearsExperience"
-  | "remotePreference"
   | "salaryExpectation"
   | "coverLetterTone";
 
@@ -116,9 +119,14 @@ type ProfileFormDraft = {
   educationEntries: EducationEntry[];
   jobTitles: string[];
   locations: string[];
+  remotePreferences: string[];
 };
 
 type ProfileScalarValues = Record<ProfileDraftFieldName, string>;
+
+export type ProfileFormHandle = {
+  applyExtractedProfile: (extractedProfile: ExtractedProfileData) => void;
+};
 
 type ReorderableProfileCardProps = {
   actions: ReactNode;
@@ -177,9 +185,20 @@ const profileDraftFieldNames: ProfileDraftFieldName[] = [
   "currentTitle",
   "experienceLevel",
   "yearsExperience",
-  "remotePreference",
   "salaryExpectation",
   "coverLetterTone",
+];
+
+type RemotePreferenceOption = {
+  label: string;
+  value: string;
+};
+
+const remotePreferenceOptions: RemotePreferenceOption[] = [
+  { label: "Remote", value: "remote" },
+  { label: "Hybrid", value: "hybrid" },
+  { label: "Onsite", value: "onsite" },
+  { label: "Any", value: "any" },
 ];
 
 function getInitialScalarValues({
@@ -202,7 +221,6 @@ function getInitialScalarValues({
     currentTitle: professionalInfo.currentTitle,
     experienceLevel: professionalInfo.experienceLevel,
     yearsExperience: professionalInfo.yearsExperience,
-    remotePreference: jobPreferences.remotePreference,
     salaryExpectation: jobPreferences.salaryExpectation,
     coverLetterTone: jobPreferences.coverLetterTone,
   };
@@ -250,6 +268,25 @@ function createEmptyEducation(index: number): EducationEntry {
 
 function normalizeList(values: string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function isRemotePreferenceOption(value: string): boolean {
+  return remotePreferenceOptions.some((option) => option.value === value);
+}
+
+function normalizeRemotePreferences(values: string[]): string[] {
+  const normalized = Array.from(
+    new Set(values.filter((value) => isRemotePreferenceOption(value))),
+  );
+
+  return normalized.includes("any")
+    ? ["any"]
+    : normalized.filter((value) => value !== "any");
+}
+
+function applyExtractedValue(current: string, extracted: string): string {
+  const extractedValue = extracted.trim();
+  return extractedValue || current;
 }
 
 function hasCompleteRole(roles: WorkRole[]): boolean {
@@ -328,6 +365,7 @@ function createProfileSnapshot({
   industries,
   jobTitles,
   locations,
+  remotePreferences,
   skills,
   workRoles,
 }: {
@@ -336,6 +374,7 @@ function createProfileSnapshot({
   industries: string[];
   jobTitles: string[];
   locations: string[];
+  remotePreferences: string[];
   skills: string[];
   workRoles: WorkRole[];
 }): string {
@@ -345,6 +384,7 @@ function createProfileSnapshot({
     industries,
     jobTitles,
     locations,
+    remotePreferences,
     skills,
     workRoles,
   });
@@ -457,6 +497,22 @@ function normalizeDraftStringArray(value: unknown): string[] {
     : [];
 }
 
+function normalizeDraftRemotePreferences(
+  value: unknown,
+  legacyValue: unknown,
+): string[] {
+  const remotePreferences = normalizeRemotePreferences(
+    normalizeDraftStringArray(value),
+  );
+
+  if (remotePreferences.length > 0) {
+    return remotePreferences;
+  }
+
+  const legacyPreference = readDraftString(legacyValue);
+  return legacyPreference ? normalizeRemotePreferences([legacyPreference]) : [];
+}
+
 function normalizeDraftWorkRoles(value: unknown): WorkRole[] {
   if (!Array.isArray(value)) {
     return [];
@@ -525,6 +581,10 @@ function parseProfileFormDraft(value: string | null): ProfileFormDraft | null {
       educationEntries: normalizeDraftEducationEntries(parsed.educationEntries),
       jobTitles: normalizeDraftStringArray(parsed.jobTitles),
       locations: normalizeDraftStringArray(parsed.locations),
+      remotePreferences: normalizeDraftRemotePreferences(
+        parsed.remotePreferences,
+        fieldsRecord.remotePreference,
+      ),
     };
   } catch {
     return null;
@@ -652,7 +712,7 @@ function ReorderableProfileCard({
             <button
               ref={dragHandleRef}
               type="button"
-              className={`${cardIconButtonClassName} cursor-grab opacity-100 active:cursor-grabbing md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100`}
+              className={`${cardIconButtonClassName} cursor-grab active:cursor-grabbing`}
               aria-label={`Drag ${itemLabel} ${index + 1}`}
             >
               <GripVertical
@@ -758,15 +818,20 @@ function ReorderableProfileCard({
   );
 }
 
-export function ProfileForm({
-  draftStorageKey,
-  personalInfo,
-  professionalInfo,
-  workExperience,
-  education,
-  jobPreferences,
-  missingItems,
-}: ProfileFormProps): JSX.Element {
+export const ProfileForm = forwardRef<ProfileFormHandle, ProfileFormProps>(
+function ProfileForm(
+  {
+    draftStorageKey,
+    personalInfo,
+    professionalInfo,
+    workExperience,
+    education,
+    jobPreferences,
+    missingItems,
+    onDirtyChange,
+  },
+  ref,
+): JSX.Element {
   const [state, formAction, pending] = useActionState(
     saveProfile,
     initialState,
@@ -783,6 +848,9 @@ export function ProfileForm({
   );
   const [locations, setLocations] = useState<string[]>(
     jobPreferences.preferredLocations,
+  );
+  const [remotePreferences, setRemotePreferences] = useState<string[]>(
+    normalizeRemotePreferences(jobPreferences.remotePreferences),
   );
   const [workRoles, setWorkRoles] = useState<WorkRole[]>(
     workExperience.length > 0 ? workExperience : [createEmptyRole(0)],
@@ -822,6 +890,7 @@ export function ProfileForm({
         industries,
         jobTitles,
         locations,
+        remotePreferences,
         skills,
         workRoles,
       }),
@@ -831,6 +900,7 @@ export function ProfileForm({
       industries,
       jobTitles,
       locations,
+      remotePreferences,
       skills,
       workRoles,
     ],
@@ -838,6 +908,10 @@ export function ProfileForm({
   const [savedProfileSnapshot, setSavedProfileSnapshot] =
     useState(currentProfileSnapshot);
   const isDirty = currentProfileSnapshot !== savedProfileSnapshot;
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const missingKeys = useMemo(() => {
     const next = new Set<CompletionFieldKey>();
@@ -875,7 +949,7 @@ export function ProfileForm({
     if (jobTitles.length === 0) {
       next.add("jobTitlesSeeking");
     }
-    if (!fieldValues.remotePreference.trim()) {
+    if (remotePreferences.length === 0) {
       next.add("remotePreference");
     }
     if (!fieldValues.workAuthorization.trim()) {
@@ -883,7 +957,14 @@ export function ProfileForm({
     }
 
     return next;
-  }, [educationEntries, fieldValues, jobTitles, skills, workRoles]);
+  }, [
+    educationEntries,
+    fieldValues,
+    jobTitles,
+    remotePreferences,
+    skills,
+    workRoles,
+  ]);
 
   function isMissing(key: CompletionFieldKey): boolean {
     return missingKeys.has(key);
@@ -901,6 +982,19 @@ export function ProfileForm({
     setFieldValues((current) => ({ ...current, [fieldName]: value }));
   }
 
+  function toggleRemotePreference(value: string): void {
+    setRemotePreferences((current) => {
+      if (value === "any") {
+        return current.includes("any") ? [] : ["any"];
+      }
+
+      const withoutAny = current.filter((preference) => preference !== "any");
+      return withoutAny.includes(value)
+        ? withoutAny.filter((preference) => preference !== value)
+        : normalizeRemotePreferences([...withoutAny, value]);
+    });
+  }
+
   const collectProfileDraft = useCallback((): ProfileFormDraft => {
     return {
       version: 1,
@@ -912,6 +1006,7 @@ export function ProfileForm({
       educationEntries,
       jobTitles,
       locations,
+      remotePreferences,
     };
   }, [
     educationEntries,
@@ -919,6 +1014,7 @@ export function ProfileForm({
     industries,
     jobTitles,
     locations,
+    remotePreferences,
     skills,
     workRoles,
   ]);
@@ -966,6 +1062,7 @@ export function ProfileForm({
       setIndustries(draft.industries);
       setJobTitles(draft.jobTitles);
       setLocations(draft.locations);
+      setRemotePreferences(draft.remotePreferences);
       setWorkRoles(
         draft.workRoles.length > 0 ? draft.workRoles : [createEmptyRole(0)],
       );
@@ -993,6 +1090,7 @@ export function ProfileForm({
     industries,
     jobTitles,
     locations,
+    remotePreferences,
     scheduleDraftSave,
     skills,
     workRoles,
@@ -1092,6 +1190,122 @@ export function ProfileForm({
 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [deleteConfirmation]);
+
+  const applyExtractedProfile = useCallback(
+    (extractedProfile: ExtractedProfileData): void => {
+      setFieldValues((current) => ({
+        ...current,
+        fullName: applyExtractedValue(
+          current.fullName,
+          extractedProfile.personalInfo.fullName,
+        ),
+        email: applyExtractedValue(
+          current.email,
+          extractedProfile.personalInfo.email,
+        ),
+        phone: applyExtractedValue(
+          current.phone,
+          extractedProfile.personalInfo.phone,
+        ),
+        location: applyExtractedValue(
+          current.location,
+          extractedProfile.personalInfo.location,
+        ),
+        linkedinUrl: applyExtractedValue(
+          current.linkedinUrl,
+          extractedProfile.personalInfo.linkedinUrl,
+        ),
+        portfolioUrl: applyExtractedValue(
+          current.portfolioUrl,
+          extractedProfile.personalInfo.portfolioUrl,
+        ),
+        workAuthorization: applyExtractedValue(
+          current.workAuthorization,
+          extractedProfile.personalInfo.workAuthorization,
+        ),
+        currentTitle: applyExtractedValue(
+          current.currentTitle,
+          extractedProfile.professionalInfo.currentTitle,
+        ),
+        experienceLevel: applyExtractedValue(
+          current.experienceLevel,
+          extractedProfile.professionalInfo.experienceLevel,
+        ),
+        yearsExperience: applyExtractedValue(
+          current.yearsExperience,
+          extractedProfile.professionalInfo.yearsExperience,
+        ),
+        salaryExpectation: applyExtractedValue(
+          current.salaryExpectation,
+          extractedProfile.jobPreferences.salaryExpectation,
+        ),
+        coverLetterTone: applyExtractedValue(
+          current.coverLetterTone,
+          extractedProfile.jobPreferences.coverLetterTone,
+        ),
+      }));
+      setSkills((current) => {
+        const extractedSkills = normalizeList(
+          extractedProfile.professionalInfo.skills,
+        );
+        return extractedSkills.length > 0 ? extractedSkills : current;
+      });
+      setIndustries((current) => {
+        const extractedIndustries = normalizeList(
+          extractedProfile.professionalInfo.industries,
+        );
+        return extractedIndustries.length > 0 ? extractedIndustries : current;
+      });
+      setJobTitles((current) => {
+        const extractedJobTitles = normalizeList(
+          extractedProfile.jobPreferences.jobTitlesSeeking,
+        );
+        return extractedJobTitles.length > 0 ? extractedJobTitles : current;
+      });
+      setLocations((current) => {
+        const extractedLocations = normalizeList(
+          extractedProfile.jobPreferences.preferredLocations,
+        );
+        return extractedLocations.length > 0 ? extractedLocations : current;
+      });
+      setRemotePreferences((current) => {
+        const extractedRemotePreferences = normalizeRemotePreferences(
+          extractedProfile.jobPreferences.remotePreferences,
+        );
+        return extractedRemotePreferences.length > 0
+          ? extractedRemotePreferences
+          : current;
+      });
+
+      const extractedRoles = extractedProfile.workExperience
+        .filter(roleHasData)
+        .map((role) => ({
+          ...role,
+          endDate: role.current ? "" : role.endDate,
+        }));
+      const extractedEducation = extractedProfile.education.filter(
+        educationEntryHasData,
+      );
+      if (extractedRoles.length > 0) {
+        setCollapsedRoleIds([]);
+        setWorkRoles(extractedRoles);
+      }
+
+      if (extractedEducation.length > 0) {
+        setCollapsedEducationIds([]);
+        setEducationEntries(extractedEducation);
+      }
+    },
+    [],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      applyExtractedProfile,
+    }),
+    [applyExtractedProfile],
+  );
 
   function updateDraft(kind: ArrayFieldKind, value: string): void {
     setDrafts((current) => ({ ...current, [kind]: value }));
@@ -1483,6 +1697,11 @@ export function ProfileForm({
         name="preferredLocations"
         type="hidden"
         value={JSON.stringify(locations)}
+      />
+      <input
+        name="remotePreferences"
+        type="hidden"
+        value={JSON.stringify(remotePreferences)}
       />
 
       <section className="rounded-xl border border-border bg-surface p-6 shadow-sm">
@@ -2168,33 +2387,49 @@ export function ProfileForm({
             values={jobTitles}
           />
 
-          <div className={fieldGroupClassName}>
-            <label
-              className={labelClassName}
-              htmlFor="profile-field-remote-preference"
-            >
-              Remote Preference
-            </label>
-            <select
-              className={getFieldClassName(
-                selectClassName,
-                isMissing("remotePreference"),
-              )}
+          <fieldset className={fieldGroupClassName}>
+            <legend className={labelClassName}>Remote Preference</legend>
+            <div
               id="profile-field-remote-preference"
-              name="remotePreference"
-              onChange={(event) =>
-                updateFieldValue("remotePreference", event.target.value)
-              }
-              value={fieldValues.remotePreference}
+              className={`scroll-mt-24 rounded-md border bg-surface p-2 shadow-sm ${
+                isMissing("remotePreference")
+                  ? "border-accent ring-1 ring-accent/30"
+                  : "border-border"
+              }`}
+              tabIndex={-1}
             >
-              <option value="">Select preference</option>
-              <option value="remote">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="onsite">Onsite</option>
-              <option value="any">Any</option>
-            </select>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {remotePreferenceOptions.map((option) => {
+                  const inputId = `profile-field-remote-preference-${option.value}`;
+                  const isChecked = remotePreferences.includes(option.value);
+
+                  return (
+                    <label
+                      key={option.value}
+                      className={`flex min-h-10 cursor-pointer items-center gap-3 rounded-md border px-3 py-2 text-[14px] font-medium leading-5 transition-[background-color,border-color,color] ${
+                        isChecked
+                          ? "border-accent bg-accent-muted text-accent"
+                          : "border-border bg-surface text-text-primary hover:border-accent hover:bg-surface-secondary"
+                      }`}
+                      htmlFor={inputId}
+                    >
+                      <input
+                        checked={isChecked}
+                        className="size-4 rounded-sm border-border text-accent focus:ring-accent"
+                        id={inputId}
+                        name="remotePreference"
+                        onChange={() => toggleRemotePreference(option.value)}
+                        type="checkbox"
+                        value={option.value}
+                      />
+                      {option.label}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <RequiredHelper show={isMissing("remotePreference")} />
-          </div>
+          </fieldset>
 
           <div className={fieldGroupClassName}>
             <label className={labelClassName} htmlFor="salary-expectation">
@@ -2361,7 +2596,7 @@ export function ProfileForm({
       </section>
     </form>
   );
-}
+});
 
 type TagInputProps = {
   addLabel: string;

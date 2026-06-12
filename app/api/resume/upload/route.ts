@@ -1,6 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  E2E_AUTH_COOKIE,
+  E2E_PROFILE_COOKIE,
+  getE2ESessionFromCookieValues,
+} from "@/lib/e2e-auth";
+import { saveE2EResumeReference } from "@/lib/e2e-profile";
 import { createInsforgeServer } from "@/lib/insforge-server";
 import { captureProfileCompletedEvent } from "@/lib/posthog-server";
 import {
@@ -69,6 +75,62 @@ export async function POST(request: NextRequest) {
 
     if (!rateLimit.allowed) {
       return rateLimitResponse(rateLimit.retryAfterSeconds);
+    }
+
+    const e2eSession = getE2ESessionFromCookieValues(
+      request.cookies.get(E2E_AUTH_COOKIE)?.value,
+      request.cookies.get(E2E_PROFILE_COOKIE)?.value,
+    );
+
+    if (e2eSession) {
+      const formData = await request.formData();
+      const resume = formData.get("resume");
+
+      if (!(resume instanceof File)) {
+        return NextResponse.json(
+          { success: false, error: "Choose a PDF resume before uploading." },
+          { status: 400 },
+        );
+      }
+
+      if (!hasPdfMetadata(resume) || !(await hasPdfSignature(resume))) {
+        return NextResponse.json(
+          { success: false, error: "Resume upload supports PDF files only." },
+          { status: 400 },
+        );
+      }
+
+      if (resume.size > MAX_RESUME_SIZE_BYTES) {
+        return NextResponse.json(
+          { success: false, error: "Resume PDF must be 10 MB or smaller." },
+          { status: 400 },
+        );
+      }
+
+      const timestamp = Date.now();
+      const resumeKey = `resumes/${e2eSession.user.id}/e2e-resume-${timestamp}.pdf`;
+      const profile = saveE2EResumeReference(e2eSession, {
+        key: resumeKey,
+        url: `/e2e/resume-${timestamp}.pdf`,
+      });
+      const profileView = mapProfileRecordToViewModel(
+        profile,
+        e2eSession.user.email,
+      );
+      const completion = calculateCompletion(profileView, true);
+
+      revalidatePath("/profile");
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          fileName: resume.name,
+          fileDetails: `${formatBytes(resume.size)} - Uploaded just now`,
+          key: resumeKey,
+          url: `/e2e/resume-${timestamp}.pdf`,
+          completion,
+        },
+      });
     }
 
     const insforge = await createInsforgeServer();
@@ -151,6 +213,8 @@ export async function POST(request: NextRequest) {
         email: existingProfile?.email ?? user.email ?? "",
         resume_pdf_url: uploadData.url,
         resume_pdf_key: uploadData.key,
+        resume_extracted_pdf_key: null,
+        resume_extracted_at: null,
         is_complete: completion.isComplete,
       })
       .select()

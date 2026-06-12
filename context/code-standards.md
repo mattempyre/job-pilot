@@ -252,8 +252,13 @@ All environment variables defined in `.env.local` for development. Never hardcod
 | `ADZUNA_APP_KEY`                | lib/adzuna.ts          |
 | `NEXT_PUBLIC_POSTHOG_KEY`       | lib/posthog-client.ts  |
 | `NEXT_PUBLIC_POSTHOG_HOST`      | lib/posthog-client.ts  |
+| `JOB_PILOT_E2E_AUTH`            | lib/e2e-auth.ts        |
+| `JOB_PILOT_E2E_USER_ID`         | lib/e2e-auth.ts        |
+| `JOB_PILOT_E2E_EMAIL`           | lib/e2e-auth.ts        |
 
 `NEXT_PUBLIC_` prefix means the variable is exposed to the browser. Never add `NEXT_PUBLIC_` to secret keys.
+
+`JOB_PILOT_E2E_*` variables are server-only local test controls. They must never be prefixed with `NEXT_PUBLIC_`, and e2e auth must remain disabled when `NODE_ENV=production`.
 
 ---
 

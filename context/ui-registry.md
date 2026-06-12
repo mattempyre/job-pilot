@@ -20,6 +20,15 @@ After building any component — update this file with the component name, file 
 
 ## Non-UI Feature Notes
 
+- 2026-06-12 — Resume generation and private resume review added backend surfaces. `agent/resume-generation.ts` owns GPT-4o resume content generation, `lib/resume-renderer.tsx` renders server-only PDFs with `@react-pdf/renderer`, `/api/resume/generate` replaces the active private resume from saved profile data, and `/api/resume/current` streams the authenticated user's active PDF inline without exposing the private storage URL.
+- 2026-06-11 — Resume extraction parser fix changed no visible UI. `lib/resume-pdf.ts` configures `pdf-parse` with the packaged worker file path from `node_modules` instead of importing `pdf-parse/worker`, and `/api/resume/extract` now separates parser infrastructure failures from unreadable PDF content failures.
+- 2026-06-12 — Feature 07 review fixes changed no visible UI. `agent/resume-extraction.ts` now owns GPT-4o extraction prompt/response handling, `/api/resume/extract` reserves the active resume marker before OpenAI to prevent concurrent duplicate API spend, and `profiles.remote_preference` accepts multi-select comma-separated values at the database constraint level.
+- 2026-06-11 — Resume extraction validation fix changed no visible UI. `lib/profile.ts` now normalizes oversized OpenAI extraction responses by truncating text, capping list/section sizes, accepting single work/education objects, and avoiding whole-response rejection for harmless model shape drift.
+- 2026-06-11 — Resume extraction repeat guard added `profiles.resume_extracted_pdf_key` and `profiles.resume_extracted_at`. `/api/resume/extract` now rejects duplicate extraction for the active PDF before PDF download or OpenAI calls, and resume upload clears the marker for the new active PDF.
+- 2026-06-11 — Resume extraction job title seeding changed no visible UI. `lib/profile.ts` now fills `jobPreferences.jobTitlesSeeking` from explicit target roles plus the extracted current title and newest work role titles so the existing removable Job Titles Seeking chips get useful defaults.
+- 2026-06-11 — Remote preference multi-select changed ProfileForm UI. The former select is now a tokenized checkbox group where `Remote`, `Hybrid`, and `Onsite` can be combined, while `Any` is exclusive.
+- 2026-06-11 — Playwright e2e auth support changed no visible UI. `JOB_PILOT_E2E_AUTH=1` plus the `jobpilot_e2e_auth=1` cookie lets local tests access protected routes with fixture profile scenarios through `lib/auth-session.ts`, `lib/e2e-auth.ts`, and `lib/e2e-profile.ts`; production auth remains InsForge-only.
+- 2026-06-11 — AI Profile Extraction from Resume adds `/api/resume/extract`, `openai`, and `pdf-parse`. The route downloads the authenticated user's active private resume from InsForge Storage, parses text server-side, asks GPT-4o for structured profile JSON, validates through `lib/profile.ts`, and returns transient extracted data without writing profile fields to the database.
 - 2026-06-10 — Profile Save Logic security hardening changed no visible UI. Profile mutations now cap server-side field lengths/array sizes, Server Action bodies are limited to `512kb`, resume uploads validate the PDF signature, and resume replacement only removes previous keys under the authenticated user's storage prefix.
 - 2026-06-10 — Profile Save Logic added real InsForge persistence and independent resume upload behavior. New backend surfaces are `actions/profile.ts`, `app/api/resume/upload/route.ts`, and shared profile normalization/completion helpers in `lib/profile.ts`.
 - 2026-06-10 — Repeatable education support changed no database schema. `profiles.education` now stores an object wrapper with `entries`, while legacy singular education objects remain readable through app normalization.
@@ -271,22 +280,22 @@ Logout uses the same restrained secondary-button treatment as OAuth provider but
 ### Profile Page
 
 File: app/profile/page.tsx
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 | Property         | Class           |
 | ---------------- | --------------- |
-| Background       | `bg-background`, `bg-surface` |
+| Background       | `bg-background`, `bg-surface`, `bg-accent-muted` |
 | Border           | `border-x border-border`, `border border-border` |
-| Border radius    | `rounded-xl` |
-| Text — primary   | `text-[16px] font-semibold leading-6`, `text-text-primary` |
+| Border radius    | `rounded-xl`, `rounded-md` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-text-primary`, `text-accent` |
 | Text — secondary | `text-[14px] font-normal leading-5`, `text-text-secondary` |
-| Spacing          | `px-8 py-8`, `space-y-6`, `p-6`, `gap-4`, `gap-6`, `mt-2` |
+| Spacing          | `px-8 py-8`, `space-y-6`, `p-6`, `gap-4`, `gap-6`, `gap-3`, `mt-2` |
 | Hover state      | none |
 | Shadow           | `shadow-sm` |
-| Accent usage     | none |
+| Accent usage     | `bg-accent-muted`, `text-accent` |
 
 **Pattern notes:**
-The full profile page keeps the protected page shell, stacks the profile status, connected account, and resume management cards above the form, and now loads real authenticated profile data server-side before passing initial values to client editors. Future protected full-page UIs should preserve the `bg-background` shell, centered `max-w-[1280px]`, and `rounded-xl border border-border bg-surface p-6 shadow-sm` section baseline.
+The full profile page keeps the protected page shell, stacks the profile status, connected account, and resume management cards above the form, and now loads real authenticated profile data server-side before passing initial values to client editors. The top profile header uses a compact `size-10 rounded-md bg-accent-muted text-accent` icon tile before the title, matching the icon-leading card header language used in profile sub-sections. Future protected full-page UIs should preserve the `bg-background` shell, centered `max-w-[1280px]`, and `rounded-xl border border-border bg-surface p-6 shadow-sm` section baseline.
 
 ### CompletionIndicator
 
@@ -311,34 +320,34 @@ Completion status uses the standard card shell with a compact icon tile, clickab
 ### ConnectedAccounts
 
 File: components/profile/ConnectedAccounts.tsx
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 | Property         | Class           |
 | ---------------- | --------------- |
 | Background       | `bg-surface`, `bg-linkedin-light`, `bg-linkedin` |
 | Border           | `border border-border` |
 | Border radius    | `rounded-xl`, `rounded-md` |
-| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[16px] font-medium leading-6`, `text-text-primary`, `text-linkedin-foreground` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[16px] font-medium leading-6`, `text-text-primary`, `text-linkedin`, `text-linkedin-foreground` |
 | Text — secondary | `text-[14px] font-normal leading-5`, `text-text-secondary`, `text-text-muted` |
-| Spacing          | `p-6`, `p-5`, `gap-4`, `mt-2`, `mt-6`, `px-6` |
+| Spacing          | `p-6`, `p-5`, `gap-4`, `gap-3`, `mt-2`, `mt-6`, `px-6` |
 | Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-linkedin` |
 | Shadow           | `shadow-sm`, `hover:shadow-md` |
 | Accent usage     | `bg-linkedin`, `bg-linkedin-light`, `text-linkedin` |
 
 **Pattern notes:**
-Connected account cards use the standard profile card shell with an inner account row and brand-token action button. Future provider rows should keep the outer white card, inner bordered row, status copy, and provider-specific token usage instead of raw brand colors.
+Connected account cards use the standard profile card shell with an icon-leading header, inner account row, and brand-token action button. The header icon uses a compact `size-10 rounded-md bg-linkedin-light text-linkedin` connection tile to match the profile page's icon-leading section language. Future provider rows should keep the outer white card, inner bordered row, status copy, and provider-specific token usage instead of raw brand colors.
 
 ### ResumeUpload
 
 File: components/profile/ResumeUpload.tsx
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 | Property         | Class           |
 | ---------------- | --------------- |
 | Background       | `bg-surface`, `bg-surface-secondary`, `bg-info-lightest`, `bg-success-lightest`, `bg-accent` |
 | Border           | `border border-border`, `border-dashed border-border`, `hover:border-accent` |
 | Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
-| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground`, `text-success`, `text-error` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-semibold leading-5`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground`, `text-success`, `text-error` |
 | Text — secondary | `text-[14px] font-normal leading-5`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
 | Spacing          | `p-6`, `p-4`, `px-6 py-8`, `px-4`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-2`, `mt-1` |
 | Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:bg-surface`, `hover:border-accent`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `active:translate-y-0 active:duration-75`, `disabled:opacity-60` |
@@ -346,12 +355,32 @@ Last updated: 2026-06-10
 | Accent usage     | `text-accent`, `bg-accent`, `hover:border-accent`, `focus-visible:ring-accent` |
 
 **Pattern notes:**
-Resume management uses a left icon-leading card header, dashed tokenized upload panel, real XHR upload progress, a processing state, and a success pulse before refreshing server data. Replacing an existing resume first shows a compact inline confirmation inside the upload panel. Future upload surfaces should use the same `border-dashed border-border bg-surface-secondary` treatment, tokenized error/success states, and independent upload route pattern when byte-level progress is required.
+Resume management uses a left icon-leading card header, dashed tokenized upload panel, real XHR upload progress, a processing state, and a success pulse before refreshing server data. Replacing an existing resume first shows a compact inline confirmation inside the upload panel. Active resumes show an authenticated `Review Current Resume` secondary link to `/api/resume/current`, opening in a new tab instead of exposing the private storage URL. The Feature 07 extraction surface lives below the active resume preview as an inline `rounded-xl border border-border bg-surface-secondary p-4` panel with a primary Extract action, loading spinner, tokenized error copy, and success copy: "Profile fields filled in. Review and save below." Feature 08 adds a matching generate panel with a secondary Generate Resume from Profile action, inline replacement confirmation when an active resume exists, tokenized disabled helper copy for incomplete saved profiles or unsaved local edits, and success copy: "Generated resume saved. Review it in a new tab." After generated or uploaded replacement, the extraction lock clears for the new active PDF. Generated PDF colors resolve from `app/globals.css` token names through the server renderer helper rather than duplicated PDF color literals. Future upload/generation surfaces should use the same tokenized error/success states and independent API route pattern.
+
+### ProfileEditor
+
+File: components/profile/ProfileEditor.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | none |
+| Border           | none |
+| Border radius    | none |
+| Text — primary   | none |
+| Text — secondary | none |
+| Spacing          | none |
+| Hover state      | none |
+| Shadow           | none |
+| Accent usage     | none |
+
+**Pattern notes:**
+ProfileEditor is a coordination-only Client Component. It keeps `/profile` server-side data loading intact while allowing `ResumeUpload` to call the controlled `ProfileForm` extraction apply handle and receive dirty-state updates from the form. It should stay visually transparent and should not own data fetching or persistence.
 
 ### ProfileForm
 
 File: components/profile/ProfileForm.tsx
-Last updated: 2026-06-10
+Last updated: 2026-06-12
 
 | Property         | Class           |
 | ---------------- | --------------- |
@@ -360,10 +389,10 @@ Last updated: 2026-06-10
 | Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
 | Text — primary   | `text-[16px] font-semibold leading-6`, `text-[14px] font-semibold leading-5`, `text-[14px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground`, `text-error`, `text-error-foreground`, `text-success-foreground` |
 | Text — secondary | `text-[12px] font-medium uppercase leading-4`, `text-[12px] font-normal leading-4`, `text-text-secondary`, `text-text-muted` |
-| Spacing          | `space-y-6`, `p-6`, `p-5`, `px-3 py-3`, `px-3 py-1`, `px-4`, `px-5`, `gap-5`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1`, `pb-72`, `md:pb-36` |
+| Spacing          | `space-y-6`, `p-6`, `p-5`, `px-3 py-3`, `px-3 py-1`, `px-4`, `px-5`, `gap-5`, `gap-4`, `gap-3`, `gap-2`, `mt-6`, `mt-5`, `mt-4`, `mt-1`, `size-8`, `pb-72`, `md:pb-36` |
 | Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:bg-surface-secondary`, `hover:text-accent`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent`, `focus-visible:ring-error`, `active:translate-y-0 active:duration-75`, `disabled:opacity-60`, `cursor-grab`, `active:cursor-grabbing` |
 | Shadow           | `shadow-sm`, `hover:shadow-md`, `shadow-[0_24px_70px_color-mix(in_srgb,var(--color-overlay)_22%,transparent)]`, `shadow-[0_28px_90px_color-mix(in_srgb,var(--color-overlay)_20%,transparent),0_12px_36px_color-mix(in_srgb,var(--color-accent)_18%,transparent),0_2px_10px_color-mix(in_srgb,var(--color-overlay)_10%,transparent)]` |
 | Accent usage     | `text-accent`, `bg-accent`, `bg-accent-muted`, `focus:border-accent`, `focus:ring-accent`, `focus-visible:ring-accent` |
 
 **Pattern notes:**
-Profile form fields use semantic native controls with a shared `h-11 rounded-md border border-border bg-surface px-3 text-[14px] font-medium` baseline. Required completion fields are controlled and show live tokenized inline indicators with `border-accent`, `ring-accent/30`, and compact `text-accent` helper copy. Application Email is prefilled from auth email for new profiles but remains editable as the user's job-application contact email. Section cards use icon-leading headers, uppercase 12px labels, tokenized removable chips, and compact `Complete` / `Missing` section chips. Work role and education cards serialize structured arrays into hidden JSON fields, show compact card summaries, collapse only when multiple cards exist, and keep edited cards expanded. Work role cards put the current-role checkbox on the End Date label row, right-aligned on desktop; checking it clears and disables the End Date input. Work role and education cards expose reorder controls only when multiple cards exist: a drag handle, move up/down icon buttons, a tokenized drop line, and a screen-reader live announcement. Reorder controls stay quiet on desktop until hover/focus-within and remain visible on mobile. Removing a populated role or education card opens a tokenized focus-trapped in-app alert dialog before deletion; empty cards remove immediately. Unsaved edits debounce into user-scoped browser localStorage, restore after refresh, and surface explicit dirty/local/server save status text in the save card. Education cards reuse the inner `rounded-xl border border-border bg-surface-secondary p-5` treatment and support unlimited add/remove. Save feedback lives in a fixed bottom floating bar aligned to the profile content column with `bg-surface/55`, `backdrop-blur-2xl`, tokenized gradient sheen, and a glass-style token shadow; on mobile it sits above the protected bottom nav with extra form padding.
+Profile form fields use semantic native controls with a shared `h-11 rounded-md border border-border bg-surface px-3 text-[14px] font-medium` baseline. Required completion fields are controlled and show live tokenized inline indicators with `border-accent`, `ring-accent/30`, and compact `text-accent` helper copy. Application Email is prefilled from auth email for new profiles but remains editable as the user's job-application contact email. Section cards use icon-leading headers, uppercase 12px labels, tokenized removable chips, and compact `Complete` / `Missing` section chips. Work role and education cards serialize structured arrays into hidden JSON fields, show compact card summaries, collapse only when multiple cards exist, and keep edited cards expanded. Work role cards put the current-role checkbox on the End Date label row, right-aligned on desktop; checking it clears and disables the End Date input. Work role and education cards expose reorder controls only when multiple cards exist: an always-visible drag handle, move up/down icon buttons, a tokenized drop line, and a screen-reader live announcement. Move controls stay quiet on desktop until hover/focus-within and remain visible on mobile. Removing a populated role or education card opens a tokenized focus-trapped in-app alert dialog before deletion; empty cards remove immediately. Remote preference uses a tokenized checkbox group inside a `rounded-md border bg-surface p-2 shadow-sm` field wrapper; checked options use `border-accent bg-accent-muted text-accent`, and `Any` is exclusive while Remote/Hybrid/Onsite can combine. Extracted resume data applies through the form's imperative handle: non-empty extracted scalars overwrite current values, extracted lists replace current lists, and extracted Work Experience or Education sections replace current sections immediately. Unsaved edits debounce into user-scoped browser localStorage, restore after refresh, surface explicit dirty/local/server save status text in the save card, and are reported to `ProfileEditor` so resume generation can be blocked until saved. Education cards reuse the inner `rounded-xl border border-border bg-surface-secondary p-5` treatment and support unlimited add/remove. Save feedback lives in a fixed bottom floating bar aligned to the profile content column with `bg-surface/55`, `backdrop-blur-2xl`, tokenized gradient sheen, and a glass-style token shadow; on mobile it sits above the protected bottom nav with extra form padding.

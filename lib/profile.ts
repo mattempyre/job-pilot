@@ -42,7 +42,7 @@ export type ProfessionalInfo = {
 
 export type JobPreferences = {
   jobTitlesSeeking: string[];
-  remotePreference: string;
+  remotePreferences: string[];
   salaryExpectation: string;
   preferredLocations: string[];
   coverLetterTone: string;
@@ -51,6 +51,7 @@ export type JobPreferences = {
 export type ResumeInfo = {
   fileName: string;
   fileDetails: string;
+  hasExtractedProfile: boolean;
   url: string;
   key: string;
 };
@@ -63,6 +64,8 @@ export type ProfileViewModel = {
   jobPreferences: JobPreferences;
   resume: ResumeInfo;
 };
+
+export type ExtractedProfileData = Omit<ProfileViewModel, "resume">;
 
 export type CompletionFieldKey =
   | "fullName"
@@ -115,6 +118,8 @@ export type ProfileRecord = {
   work_authorization: string | null;
   resume_pdf_url: string | null;
   resume_pdf_key: string | null;
+  resume_extracted_pdf_key: string | null;
+  resume_extracted_at: string | null;
   is_complete: boolean;
 };
 
@@ -131,7 +136,7 @@ export type ProfileMutationValues = {
   workExperience: WorkRole[];
   education: EducationEntry[];
   jobTitlesSeeking: string[];
-  remotePreference: string;
+  remotePreferences: string[];
   preferredLocations: string[];
   salaryExpectation: string;
   coverLetterTone: string;
@@ -171,6 +176,8 @@ const MAX_EMAIL_LENGTH = 254;
 const MAX_PROFILE_LIST_ITEMS = 50;
 const MAX_WORK_ROLES = 3;
 const MAX_EDUCATION_ENTRIES = 50;
+const MAX_SEEDED_JOB_TITLE_ROLES = 3;
+const REMOTE_PREFERENCE_DELIMITER = ",";
 
 const shortTextSchema = z.string().trim().max(MAX_SHORT_TEXT_LENGTH);
 const mediumTextSchema = z.string().trim().max(MAX_MEDIUM_TEXT_LENGTH);
@@ -224,6 +231,8 @@ const profileRowSchema = z.object({
   work_authorization: z.string().nullable().default(null),
   resume_pdf_url: z.string().nullable().default(null),
   resume_pdf_key: z.string().nullable().default(null),
+  resume_extracted_pdf_key: z.string().nullable().default(null),
+  resume_extracted_at: z.string().nullable().default(null),
   is_complete: z.boolean().default(false),
 });
 
@@ -254,7 +263,10 @@ const profileFormSchema = z.object({
     .transform((roles) => roles.slice(0, MAX_WORK_ROLES)),
   education: z.array(educationEntrySchema).max(MAX_EDUCATION_ENTRIES),
   jobTitlesSeeking: stringArraySchema,
-  remotePreference: z.enum(["", "remote", "onsite", "hybrid", "any"]),
+  remotePreferences: z
+    .array(z.enum(["remote", "onsite", "hybrid", "any"]))
+    .max(4)
+    .transform((values) => normalizeRemotePreferences(values)),
   preferredLocations: stringArraySchema,
   salaryExpectation: shortTextSchema,
   coverLetterTone: z.enum(["", "formal", "casual", "enthusiastic"]),
@@ -262,6 +274,150 @@ const profileFormSchema = z.object({
   portfolioUrl: mediumTextSchema,
   workAuthorization: z.enum(["", "citizen", "permanent_resident", "visa_required"]),
 });
+
+const extractedShortTextSchema = z.preprocess(
+  (value) => normalizeExtractedText(value, MAX_SHORT_TEXT_LENGTH),
+  z.string(),
+);
+
+const extractedMediumTextSchema = z.preprocess(
+  (value) => normalizeExtractedText(value, MAX_MEDIUM_TEXT_LENGTH),
+  z.string(),
+);
+
+const extractedLongTextSchema = z.preprocess(
+  (value) => normalizeExtractedText(value, MAX_LONG_TEXT_LENGTH),
+  z.string(),
+);
+
+const extractedBooleanSchema = z.preprocess(
+  (value) => value === true,
+  z.boolean(),
+);
+
+const extractedStringArraySchema = z.preprocess(
+  (value) => normalizeExtractedStringArray(value),
+  z.array(mediumTextSchema),
+);
+
+const extractedExperienceLevelSchema = z.preprocess(
+  (value) => (isExperienceLevelValue(value) ? value : ""),
+  z.enum(["", "junior", "mid", "senior", "lead"]),
+);
+
+const extractedRemotePreferencesSchema = z.preprocess(
+  (value) => normalizeExtractedRemotePreferences(value),
+  z.array(z.enum(["remote", "onsite", "hybrid", "any"])),
+);
+
+const extractedCoverLetterToneSchema = z.preprocess(
+  (value) => (isCoverLetterToneValue(value) ? value : ""),
+  z.enum(["", "formal", "casual", "enthusiastic"]),
+);
+
+const extractedWorkAuthorizationSchema = z.preprocess(
+  (value) => (isWorkAuthorizationValue(value) ? value : ""),
+  z.enum(["", "citizen", "permanent_resident", "visa_required"]),
+);
+
+const extractedEducationDegreeSchema = z.preprocess(
+  (value) => (isEducationDegreeValue(value) ? value : ""),
+  z.enum(["", "bachelors", "masters", "phd", "bootcamp", "self_taught"]),
+);
+
+const extractedPersonalInfoSchema = z.preprocess(
+  (value) => (isRecord(value) ? value : {}),
+  z.object({
+    fullName: extractedShortTextSchema,
+    email: extractedMediumTextSchema,
+    phone: extractedShortTextSchema,
+    location: extractedMediumTextSchema,
+    linkedinUrl: extractedMediumTextSchema,
+    portfolioUrl: extractedMediumTextSchema,
+    workAuthorization: extractedWorkAuthorizationSchema,
+  }),
+);
+
+const extractedProfessionalInfoSchema = z.preprocess(
+  (value) => (isRecord(value) ? value : {}),
+  z.object({
+    currentTitle: extractedShortTextSchema,
+    experienceLevel: extractedExperienceLevelSchema,
+    yearsExperience: extractedShortTextSchema,
+    skills: extractedStringArraySchema,
+    industries: extractedStringArraySchema,
+  }),
+);
+
+const extractedWorkRoleSchema = z.preprocess(
+  (value) => (isRecord(value) ? value : {}),
+  z.object({
+    companyName: extractedShortTextSchema,
+    jobTitle: extractedShortTextSchema,
+    startDate: extractedShortTextSchema,
+    endDate: extractedShortTextSchema,
+    current: extractedBooleanSchema,
+    responsibilities: extractedLongTextSchema,
+  }),
+);
+
+const extractedEducationEntrySchema = z.preprocess(
+  (value) => (isRecord(value) ? value : {}),
+  z.object({
+    highestDegree: extractedEducationDegreeSchema,
+    fieldOfStudy: extractedShortTextSchema,
+    institutionName: extractedShortTextSchema,
+    graduationYear: extractedShortTextSchema,
+  }),
+);
+
+const extractedJobPreferencesSchema = z.preprocess(
+  (value) => {
+    const record = isRecord(value) ? value : {};
+    return {
+      ...record,
+      remotePreferences:
+        record.remotePreferences ?? record.remotePreference ?? [],
+    };
+  },
+  z.object({
+    jobTitlesSeeking: extractedStringArraySchema,
+    remotePreferences: extractedRemotePreferencesSchema,
+    salaryExpectation: extractedShortTextSchema,
+    preferredLocations: extractedStringArraySchema,
+    coverLetterTone: extractedCoverLetterToneSchema,
+  }),
+);
+
+const extractedProfileSchema = z.object({
+  personalInfo: extractedPersonalInfoSchema,
+  professionalInfo: extractedProfessionalInfoSchema,
+  workExperience: z
+    .preprocess(
+      (value) =>
+        normalizeExtractedObjectArray(value).slice(0, MAX_WORK_ROLES),
+      z.array(extractedWorkRoleSchema),
+    )
+    .transform((roles) =>
+      roles.map((role, index) => ({
+        ...role,
+        id: `extracted-role-${index + 1}`,
+      })),
+    ),
+  education: z
+    .preprocess(
+      (value) =>
+        normalizeExtractedObjectArray(value).slice(0, MAX_EDUCATION_ENTRIES),
+      z.array(extractedEducationEntrySchema),
+    )
+    .transform((entries) =>
+      entries.map((entry, index) => ({
+        ...entry,
+        id: `extracted-education-${index + 1}`,
+      })),
+    ),
+  jobPreferences: extractedJobPreferencesSchema,
+}).transform((profile) => seedExtractedJobTitlesSeeking(profile));
 
 function normalizeString(value: string | null | undefined): string {
   return value?.trim() ?? "";
@@ -275,6 +431,123 @@ function normalizeStringArray(values: string[]): string[] {
   return Array.from(
     new Set(values.map((value) => value.trim()).filter(Boolean)),
   );
+}
+
+function normalizeRemotePreferences(values: string[]): string[] {
+  const normalized = Array.from(
+    new Set(values.filter((value) => isRemotePreferenceValue(value))),
+  );
+
+  return normalized.includes("any")
+    ? ["any"]
+    : normalized.filter((value) => value !== "");
+}
+
+function parseRemotePreferences(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return normalizeRemotePreferences(
+      value.filter((item) => typeof item === "string"),
+    );
+  }
+
+  if (typeof value !== "string") {
+    return [];
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return [];
+  }
+
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      return parseRemotePreferences(parsed);
+    } catch {
+      return [];
+    }
+  }
+
+  return normalizeRemotePreferences(
+    trimmed
+      .split(REMOTE_PREFERENCE_DELIMITER)
+      .map((item) => item.trim()),
+  );
+}
+
+function serializeRemotePreferences(values: string[]): string | null {
+  const normalized = normalizeRemotePreferences(values);
+  return normalized.length > 0
+    ? normalized.join(REMOTE_PREFERENCE_DELIMITER)
+    : null;
+}
+
+function normalizeExtractedText(value: unknown, maxLength: number): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value).slice(0, maxLength);
+  }
+
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().replace(/\s+/g, " ").slice(0, maxLength);
+}
+
+function normalizeExtractedStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return normalizeStringArray(
+    value.map((item) => normalizeExtractedText(item, MAX_MEDIUM_TEXT_LENGTH)),
+  ).slice(0, MAX_PROFILE_LIST_ITEMS);
+}
+
+function normalizeExtractedObjectArray(value: unknown): unknown[] {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (isRecord(value)) {
+    return [value];
+  }
+
+  return [];
+}
+
+function normalizeExtractedRemotePreferences(value: unknown): string[] {
+  if (typeof value === "string") {
+    return parseRemotePreferences(value);
+  }
+
+  if (Array.isArray(value)) {
+    return normalizeRemotePreferences(
+      value.map((item) => normalizeExtractedText(item, MAX_SHORT_TEXT_LENGTH)),
+    );
+  }
+
+  return [];
+}
+
+function seedExtractedJobTitlesSeeking(
+  profile: ExtractedProfileData,
+): ExtractedProfileData {
+  const seededTitles = normalizeStringArray([
+    ...profile.jobPreferences.jobTitlesSeeking,
+    profile.professionalInfo.currentTitle,
+    ...profile.workExperience
+      .slice(0, MAX_SEEDED_JOB_TITLE_ROLES)
+      .map((role) => role.jobTitle),
+  ]).slice(0, MAX_PROFILE_LIST_ITEMS);
+
+  return {
+    ...profile,
+    jobPreferences: {
+      ...profile.jobPreferences,
+      jobTitlesSeeking: seededTitles,
+    },
+  };
 }
 
 function getRequiredRole(roles: WorkRole[]): WorkRole | null {
@@ -358,8 +631,74 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function isExperienceLevelValue(
+  value: unknown,
+): value is "" | "junior" | "mid" | "senior" | "lead" {
+  return (
+    value === "" ||
+    value === "junior" ||
+    value === "mid" ||
+    value === "senior" ||
+    value === "lead"
+  );
+}
+
+function isRemotePreferenceValue(
+  value: unknown,
+): value is "" | "remote" | "onsite" | "hybrid" | "any" {
+  return (
+    value === "" ||
+    value === "remote" ||
+    value === "onsite" ||
+    value === "hybrid" ||
+    value === "any"
+  );
+}
+
+function isCoverLetterToneValue(
+  value: unknown,
+): value is "" | "formal" | "casual" | "enthusiastic" {
+  return (
+    value === "" ||
+    value === "formal" ||
+    value === "casual" ||
+    value === "enthusiastic"
+  );
+}
+
+function isWorkAuthorizationValue(
+  value: unknown,
+): value is "" | "citizen" | "permanent_resident" | "visa_required" {
+  return (
+    value === "" ||
+    value === "citizen" ||
+    value === "permanent_resident" ||
+    value === "visa_required"
+  );
+}
+
+function isEducationDegreeValue(
+  value: unknown,
+): value is "" | "bachelors" | "masters" | "phd" | "bootcamp" | "self_taught" {
+  return (
+    value === "" ||
+    value === "bachelors" ||
+    value === "masters" ||
+    value === "phd" ||
+    value === "bootcamp" ||
+    value === "self_taught"
+  );
+}
+
 export function parseProfileRecord(value: unknown): ProfileRecord | null {
   const result = profileRowSchema.safeParse(value);
+  return result.success ? result.data : null;
+}
+
+export function parseExtractedProfileData(
+  value: unknown,
+): ExtractedProfileData | null {
+  const result = extractedProfileSchema.safeParse(value);
   return result.success ? result.data : null;
 }
 
@@ -395,7 +734,7 @@ export function createEmptyProfileViewModel(email: string): ProfileViewModel {
     education: [createEmptyEducationEntry(0)],
     jobPreferences: {
       jobTitlesSeeking: [],
-      remotePreference: "",
+      remotePreferences: [],
       salaryExpectation: "",
       preferredLocations: [],
       coverLetterTone: "",
@@ -403,6 +742,7 @@ export function createEmptyProfileViewModel(email: string): ProfileViewModel {
     resume: {
       fileName: "",
       fileDetails: "",
+      hasExtractedProfile: false,
       url: "",
       key: "",
     },
@@ -442,7 +782,7 @@ export function mapProfileRecordToViewModel(
     education: record.education.entries,
     jobPreferences: {
       jobTitlesSeeking: record.job_titles_seeking,
-      remotePreference: normalizeString(record.remote_preference),
+      remotePreferences: parseRemotePreferences(record.remote_preference),
       salaryExpectation: normalizeString(record.salary_expectation),
       preferredLocations: record.preferred_locations,
       coverLetterTone: normalizeString(record.cover_letter_tone),
@@ -452,6 +792,9 @@ export function mapProfileRecordToViewModel(
         ? formatResumeFileName(record.resume_pdf_key)
         : "",
       fileDetails: record.resume_pdf_key ? "Active PDF saved" : "",
+      hasExtractedProfile:
+        Boolean(record.resume_pdf_key) &&
+        record.resume_pdf_key === record.resume_extracted_pdf_key,
       url: normalizeString(record.resume_pdf_url),
       key: normalizeString(record.resume_pdf_key),
     },
@@ -461,6 +804,9 @@ export function mapProfileRecordToViewModel(
 export function parseProfileFormData(
   formData: FormData,
 ): ProfileMutationValues {
+  const remotePreferenceValues = parseJsonArray(
+    formData.get("remotePreferences"),
+  );
   const raw = {
     fullName: String(formData.get("fullName") ?? ""),
     email: String(formData.get("email") ?? ""),
@@ -474,7 +820,10 @@ export function parseProfileFormData(
     workExperience: parseJsonArray(formData.get("workExperience")),
     education: parseEducationFormEntries(formData),
     jobTitlesSeeking: parseJsonArray(formData.get("jobTitlesSeeking")),
-    remotePreference: String(formData.get("remotePreference") ?? ""),
+    remotePreferences:
+      remotePreferenceValues.length > 0
+        ? remotePreferenceValues
+        : formData.getAll("remotePreference"),
     preferredLocations: parseJsonArray(formData.get("preferredLocations")),
     salaryExpectation: String(formData.get("salaryExpectation") ?? ""),
     coverLetterTone: String(formData.get("coverLetterTone") ?? ""),
@@ -497,7 +846,7 @@ export function parseProfileFormData(
     workExperience: parsed.workExperience,
     education: parsed.education,
     jobTitlesSeeking: parsed.jobTitlesSeeking,
-    remotePreference: parsed.remotePreference,
+    remotePreferences: parsed.remotePreferences,
     preferredLocations: parsed.preferredLocations,
     salaryExpectation: parsed.salaryExpectation,
     coverLetterTone: parsed.coverLetterTone,
@@ -526,7 +875,7 @@ export function toProfileDatabasePayload(
     work_experience: values.workExperience,
     education: { entries: values.education },
     job_titles_seeking: values.jobTitlesSeeking,
-    remote_preference: nullIfEmpty(values.remotePreference),
+    remote_preference: serializeRemotePreferences(values.remotePreferences),
     preferred_locations: values.preferredLocations,
     salary_expectation: nullIfEmpty(values.salaryExpectation),
     cover_letter_tone: nullIfEmpty(values.coverLetterTone),
@@ -609,7 +958,7 @@ export function calculateCompletion(
     {
       key: "remotePreference",
       label: "REMOTE PREFERENCE",
-      complete: Boolean(values.remotePreference),
+      complete: values.remotePreferences.length > 0,
       completedLabel: "Preference added",
     },
     {
@@ -659,7 +1008,7 @@ export function viewModelToMutationValues(
     workExperience: profile.workExperience,
     education: profile.education,
     jobTitlesSeeking: profile.jobPreferences.jobTitlesSeeking,
-    remotePreference: profile.jobPreferences.remotePreference,
+    remotePreferences: profile.jobPreferences.remotePreferences,
     preferredLocations: profile.jobPreferences.preferredLocations,
     salaryExpectation: profile.jobPreferences.salaryExpectation,
     coverLetterTone: profile.jobPreferences.coverLetterTone,

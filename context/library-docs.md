@@ -121,6 +121,7 @@ const { error } = await insforge
 - Always scope queries to `user_id` — never query without user filter
 - Always handle the `error` return — never assume success
 - Use `.single()` when expecting exactly one row
+- Profile remote preferences are multi-select in app code but persist in the existing `profiles.remote_preference` text column as comma-separated values, for example `remote,hybrid`. Continue accepting legacy single values such as `hybrid`.
 
 ---
 
@@ -149,9 +150,45 @@ const resumePdfKey = data.key;
 
 - InsForge uploads return both `url` and `key`; always save both `resume_pdf_url` and `resume_pdf_key` to the DB
 - `resume_pdf_key` must start with `resumes/{user_id}/`; the database rejects profile rows that point outside the profile owner's prefix
+- Successful profile extraction stores the active key in `resume_extracted_pdf_key` plus `resume_extracted_at`; upload routes must clear both fields for the new active PDF
 - If replacing a resume, remove the previous object by `resume_pdf_key` before upload when a single active object is required
 - If InsForge auto-renames a same-key upload, use the returned `key` instead of assuming the requested path
 - Never write files to disk — always upload buffer directly to storage
+
+### Playwright E2E Auth Fixture
+
+Credential-free browser tests use a server-only mock path instead of fabricated InsForge cookies.
+
+Enable it only for local Playwright runs:
+
+```bash
+JOB_PILOT_E2E_AUTH=1 npm run dev -- --port 3100
+```
+
+Then set cookies in Playwright:
+
+```typescript
+await context.addCookies([
+  { name: "jobpilot_e2e_auth", value: "1", url: baseURL },
+  { name: "jobpilot_e2e_profile", value: "resume", url: baseURL },
+]);
+```
+
+Rules:
+
+- `JOB_PILOT_E2E_AUTH=1` and `jobpilot_e2e_auth=1` are both required.
+- The e2e path is disabled when `NODE_ENV=production`.
+- Supported profile scenarios are `blank`, `resume`, and `populated`.
+- `lib/auth-session.ts` is the shared server-side current-user entrypoint for pages and Server Actions.
+- `lib/e2e-profile.ts` owns fixture profile records and deterministic resume extraction data.
+- Do not use this path to test InsForge OAuth itself; keep one separate manual real-auth smoke test for provider configuration.
+
+`npm run test:e2e` starts its own e2e-enabled Next dev server on port 3100 by default. Next.js 16 only permits one dev server per project, so stop any existing `next dev` process first or run tests against an already-started e2e server:
+
+```bash
+JOB_PILOT_E2E_AUTH=1 npm run dev
+PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e
+```
 
 ---
 
@@ -553,6 +590,7 @@ const result = JSON.parse(response.choices[0].message.content!);
 **Temperature settings:**
 
 - `0.3` — matching, scoring, extraction, research synthesis — deterministic results
+- `0` — resume profile extraction — most deterministic field mapping
 - `0.7` — resume generation — natural variation
 
 **Max tokens:**
@@ -560,7 +598,7 @@ const result = JSON.parse(response.choices[0].message.content!);
 - Job matching + scoring: `300`
 - Company research synthesis: `800`
 - Resume generation: `1000`
-- Profile extraction from resume: `800`
+- Profile extraction from resume: `1600`
 
 **Rules:**
 
@@ -570,6 +608,9 @@ const result = JSON.parse(response.choices[0].message.content!);
 - Always validate parsed JSON before using — wrap in try/catch
 - Match threshold is always `MATCH_THRESHOLD` from `lib/utils.ts` — never hardcode 70
 - Company research synthesis must always return a complete dossier — never return empty even if browser research failed
+- Profile extraction is transient: return validated extracted profile JSON to the client, but do not write profile fields to the database until the user explicitly saves the profile form
+- Profile extraction can run only once per active resume key. If `resume_extracted_pdf_key` already matches the active `resume_pdf_key`, return a human-readable 409 before downloading the PDF or calling OpenAI. Reserve the active key before the OpenAI call so concurrent requests cannot both spend API calls; clear that reservation only when extraction fails before validated data is returned.
+- Profile extraction validation must normalize model deviations conservatively: truncate overlong text, cap list sizes, cap work roles to 3 newest entries, and accept a single work/education object as a one-item array instead of rejecting the entire extraction
 
 ---
 
@@ -692,6 +733,11 @@ Only use these — others are silently ignored:
 - PDF generation only in `app/api/resume/` routes
 - Generated buffer uploaded directly to InsForge Storage — never written to disk
 - Always save the returned storage URL and key to DB after upload
+- JobPilot generated resumes target a controlled one to two page PDF. Cap roles, bullets, skills, and education entries before rendering instead of allowing unbounded profile data to sprawl.
+- If GPT-4o resume content generation fails, render a deterministic fallback from saved profile fields rather than failing the request. The fallback must still use the same validated `GeneratedResumeContent` shape and the same server-only renderer.
+- Generated resume replacements must save with an active `resume_pdf_key` compare-and-swap guard. If the active resume changes before save completes, delete the newly uploaded object and return a conflict instead of leaving an orphaned PDF.
+- React PDF styles do not use Tailwind classes. Resolve color values from `app/globals.css` UI tokens through a server helper instead of duplicating color literals inside the renderer.
+- Active private resumes are reviewed through `/api/resume/current`, which authenticates the user, checks the storage key prefix, downloads from the private `resumes` bucket, and streams the PDF inline with `Cache-Control: private, no-store`.
 
 ---
 
@@ -702,28 +748,39 @@ Only use these — others are silently ignored:
 ### Extract Text from Uploaded Resume
 
 ```typescript
-import pdf from "pdf-parse";
+import path from "node:path";
 
-// In API route handling resume upload
-export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const file = formData.get("resume") as File;
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+import { PDFParse } from "pdf-parse";
 
-  const pdfData = await pdf(buffer);
-  const extractedText = pdfData.text; // raw text content
+PDFParse.setWorker(
+  path.join(process.cwd(), "node_modules/pdf-parse/dist/worker/pdf.worker.mjs"),
+);
 
-  // Send to GPT-4o for structured extraction
+async function extractPdfText(blob: Blob): Promise<string> {
+  const parser = new PDFParse({
+    data: Buffer.from(await blob.arrayBuffer()),
+  });
+
+  try {
+    const result = await parser.getText();
+    return result.text.trim();
+  } finally {
+    await parser.destroy();
+  }
 }
 ```
 
 **Rules:**
 
 - Server-side only — never import in client components
-- `pdfData.text` is raw unformatted text — GPT-4o handles the structure extraction
+- Configure the packaged worker path with `PDFParse.setWorker(path.join(process.cwd(), "node_modules/pdf-parse/dist/worker/pdf.worker.mjs"))` before parsing. Next.js server bundling can otherwise make pdf.js look for a missing `.next/.../pdf.worker.mjs` file and fail valid PDFs as unreadable.
+- Do not import `pdf-parse/worker` from app code. In Next.js 16/Turbopack it pulls `@napi-rs/canvas` into the route chunk and can fail production builds with a non-placeable asset error.
+- Use the active private `profiles.resume_pdf_key` and InsForge Storage `download(key)`; never ask the browser to send the PDF again for extraction
+- `getText().text` is raw unformatted text — GPT-4o handles the structure extraction
+- Always destroy the `PDFParse` parser in a `finally` block
 - Always handle parse errors — some PDFs are image-based and return empty text
-- If `pdfData.text` is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
+- If extracted text is empty or very short — return error to user: "Could not extract text from this PDF. Please try a different file."
+- Apply behavior lives in the profile form: non-empty extracted scalar values overwrite current form values, extracted lists replace current lists, and extracted Work Experience or Education sections replace current sections immediately. Users still review and manually save before profile DB fields change.
 
 ---
 

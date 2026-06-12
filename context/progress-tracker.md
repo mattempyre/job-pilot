@@ -7,8 +7,8 @@ Update this file after every completed feature. Any AI agent reading this should
 ## Current Status
 
 **Phase:** Phase 2 — Profile Page
-**Last completed:** 06 Profile Save Logic
-**Next:** 07 AI Profile Extraction from Resume
+**Last completed:** 08 Resume PDF Generation from Profile
+**Next:** 09 Find Jobs Page — Full UI
 
 ---
 
@@ -25,8 +25,8 @@ Update this file after every completed feature. Any AI agent reading this should
 
 - [x] 05 Profile Page — Full UI
 - [x] 06 Profile Save Logic
-- [ ] 07 AI Profile Extraction from Resume
-- [ ] 08 Resume PDF Generation from Profile
+- [x] 07 AI Profile Extraction from Resume
+- [x] 08 Resume PDF Generation from Profile
 
 ### Phase 3 — Find Jobs Page
 
@@ -60,6 +60,20 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-10 — The profile email is the user's application contact email, not necessarily their authentication email. New profiles prefill it from auth email, but the field remains editable and the submitted value is persisted.
 - 2026-06-10 — Profile education is repeatable without a DB migration. `profiles.education` remains an object-shaped JSON column and stores `{ entries: EducationEntry[] }`; legacy singular education objects are normalized into a one-entry array in app code.
 - 2026-06-10 — Profile role and education ordering is persisted through the existing JSON array order. Reordering uses Atlassian Pragmatic Drag and Drop with handle-only dragging plus keyboard move controls; no database migration is required.
+- 2026-06-11 — Feature 07 keeps resume extraction transient until the user saves the profile. `/api/resume/extract` reads the authenticated user's active private resume, parses text with `pdf-parse`, asks GPT-4o for structured profile JSON, and returns validated data to the profile page without writing profile fields to the database.
+- 2026-06-11 — Extracted resume data applies directly into the local profile draft: non-empty extracted scalar values overwrite populated form values, extracted lists replace current lists, and extracted Work Experience or Education sections replace populated sections without an extra confirmation. Users still must review and click Save Profile before the database changes.
+- 2026-06-11 — Local Playwright auth support uses a server-only fixture path instead of mocked InsForge cookies. `JOB_PILOT_E2E_AUTH=1` and `jobpilot_e2e_auth=1` are both required, the mode is disabled in production, and profile scenarios are selected with `jobpilot_e2e_profile=blank|resume|populated`.
+- 2026-06-11 — Resume extraction configures `pdf-parse` with the packaged worker file path from `node_modules` instead of importing `pdf-parse/worker`. This avoids the missing `.next/.../pdf.worker.mjs` runtime failure and Turbopack's native `@napi-rs/canvas` route-bundling failure. Parser infrastructure errors now return a temporary-unavailable response instead of the unreadable-PDF message.
+- 2026-06-11 — Resume extraction validates OpenAI responses with conservative normalization instead of brittle rejection. Overlong extracted text is truncated, list sizes are capped, work roles are limited to 3 newest entries, single work/education objects are accepted as one-item arrays, and OpenAI JSON truncation is logged separately from schema issues.
+- 2026-06-11 — Resume extraction is limited to one successful extraction per active PDF. The app records `profiles.resume_extracted_pdf_key` after a successful extraction, rejects duplicate extraction before PDF download or OpenAI calls, and clears the marker when a new resume is uploaded.
+- 2026-06-11 — Remote preference is now multi-select in the profile form. The app stores selected values in the existing `profiles.remote_preference` text column as comma-separated values for backward compatibility; legacy single values such as `hybrid` still hydrate correctly. `any` is exclusive, while `remote`, `hybrid`, and `onsite` can be combined.
+- 2026-06-11 — Resume extraction seeds `jobTitlesSeeking` from the resume. Explicit target roles are preserved, and the parser appends the extracted current title plus the newest few work role titles as removable chips when target roles are missing or sparse.
+- 2026-06-12 — Feature 07 review fixes: `profiles.remote_preference` now has a named database check constraint that accepts comma-separated remote/hybrid/onsite selections or `any` by itself; resume extraction reserves `resume_extracted_pdf_key` before the OpenAI call to prevent concurrent duplicate API spend; GPT-4o extraction prompt/response handling moved into `agent/resume-extraction.ts`.
+- 2026-06-12 — Feature 08 generates active resume PDFs from saved profile data only. The UI blocks generation while required saved profile fields are incomplete or local profile edits are unsaved, confirms before replacing an existing active resume, and reviews private PDFs through authenticated `/api/resume/current` instead of direct storage URLs.
+- 2026-06-12 — Feature 08 uses `@react-pdf/renderer` server-side through `lib/resume-renderer.tsx`. GPT-4o returns validated, capped resume content in `agent/resume-generation.ts`; generated PDFs are controlled to one or two pages by limiting roles, bullets, skills, and education entries.
+- 2026-06-12 — Resume generation now has a deterministic fallback. If GPT-4o is unavailable or returns invalid resume content, `/api/resume/generate` logs the AI failure, formats the saved profile directly, renders a PDF, and leaves the user with a usable generated resume instead of failing.
+- 2026-06-12 — Resume generation hardening: `/api/resume/generate` now saves with an active-resume compare-and-swap guard and removes the just-uploaded PDF on save conflicts, while generated PDF colors resolve from `app/globals.css` UI tokens instead of duplicated renderer literals.
+- 2026-06-12 — Pending Feature 07 backend migrations were applied to InsForge before Feature 08 real testing: `resume_extracted_pdf_key`, `resume_extracted_at`, `profiles_extracted_resume_key_matches_user`, and multi-select `profiles_remote_preference_valid` are now present.
 
 ---
 
@@ -91,3 +105,14 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-10 — Profile Save Logic follow-up: deleting populated Work Experience or Education cards now opens an in-app confirmation dialog, while empty cards still remove immediately.
 - 2026-06-10 — Profile Save Logic security hardening: profile form mutations now enforce server-side field, array, role, and education payload caps; Server Action bodies are limited to `512kb`; resume uploads validate the PDF magic bytes and only delete prior resume objects under the authenticated user's key prefix.
 - 2026-06-10 — Profile UX polish follow-up: protected mobile pages now include a tokenized bottom navigation, `/profile` positions its sticky save bar above that nav on mobile, profile sections show icon-leading headers with completion chips, role and education cards support multi-card collapse with summaries, populated-card deletion uses a focus-trapped dialog, and resume replacement asks for inline confirmation.
+- 2026-06-11 — AI Profile Extraction from Resume completed. `/profile` now shows an Extract from Resume action after an active PDF is uploaded, renders inline extraction loading/error/success states in the Resume card, applies extracted data directly into the controlled form, shows "Profile fields filled in. Review and save below.", and leaves final persistence to the existing Save Profile action.
+- 2026-06-11 — Credential-free Playwright coverage added for `/profile`. `npm run test:e2e` starts Next on port 3100 with e2e auth enabled, sets local auth/profile cookies, and verifies no-resume, extraction auto-fill, and populated-field overwrite behavior without OAuth credentials.
+- 2026-06-11 — Resume extraction parser regression added in `tests/resume-pdf-parser.spec.ts` to exercise real `pdf-parse` text extraction with the configured worker path.
+- 2026-06-11 — Extracted profile parser regression added in `tests/extracted-profile-parser.spec.ts` to ensure oversized model responses normalize instead of returning a 500.
+- 2026-06-11 — Resume extraction repeat guard regression added through the credential-free profile e2e path: after one successful extraction, the UI disables the action and the duplicate API call returns 409.
+- 2026-06-11 — Remote preference multi-select regression added in `tests/remote-preferences.spec.ts` for legacy hydration, multi-value save serialization, and `Any` exclusivity.
+- 2026-06-11 — Extracted profile parser regression now verifies `Job Titles Seeking` is seeded from current and recent role titles when the model returns no explicit target roles.
+- 2026-06-11 — Profile page header follow-up: added the same compact accent icon tile treatment used by profile section headers to the top Profile card.
+- 2026-06-11 — Connected Accounts follow-up: added a compact LinkedIn-token connection icon tile to the card header for consistency with the other profile page sections.
+- 2026-06-11 — Work Experience follow-up: removed the role card briefcase icon and kept reorder drag handles visible so role titles do not appear offset by hidden controls.
+- 2026-06-12 — Resume PDF Generation from Profile completed. `/profile` now reviews active private resumes through `/api/resume/current`, generates polished PDFs through `/api/resume/generate`, replaces the active resume reference on success, clears extraction markers for generated replacements, and includes e2e fixture support for first-time generation and replacement confirmation.

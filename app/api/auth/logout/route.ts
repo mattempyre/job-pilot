@@ -1,6 +1,7 @@
 import { clearAuthCookies } from "@insforge/sdk/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
+import { E2E_AUTH_COOKIE, E2E_PROFILE_COOKIE } from "@/lib/e2e-auth";
 import {
   enforceRateLimit,
   forbiddenResponse,
@@ -30,6 +31,8 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({ success: true });
     clearAuthCookies(response.cookies);
+    response.cookies.set(E2E_AUTH_COOKIE, "", { maxAge: 0, path: "/" });
+    response.cookies.set(E2E_PROFILE_COOKIE, "", { maxAge: 0, path: "/" });
     return response;
   } catch (error) {
     console.error("[auth/logout]", error);

@@ -2,6 +2,12 @@ import { updateSession } from "@insforge/sdk/ssr";
 import type { CookieOptions, CookieStore } from "@insforge/sdk/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import {
+  E2E_AUTH_COOKIE,
+  E2E_PROFILE_COOKIE,
+  getE2ESessionFromCookieValues,
+} from "@/lib/e2e-auth";
+
 const protectedRoutes = ["/dashboard", "/profile", "/find-jobs"];
 const authRoutes = ["/login", "/callback"];
 
@@ -49,10 +55,16 @@ function createResponseCookieStore(response: NextResponse): CookieStore {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const response = NextResponse.next({ request });
-  const session = await updateSession({
-    requestCookies: createRequestCookieStore(request),
-    responseCookies: createResponseCookieStore(response),
-  });
+  const e2eSession = getE2ESessionFromCookieValues(
+    request.cookies.get(E2E_AUTH_COOKIE)?.value,
+    request.cookies.get(E2E_PROFILE_COOKIE)?.value,
+  );
+  const session = e2eSession
+    ? { accessToken: "e2e" }
+    : await updateSession({
+        requestCookies: createRequestCookieStore(request),
+        responseCookies: createResponseCookieStore(response),
+      });
 
   const hasSession = Boolean(session.accessToken);
 

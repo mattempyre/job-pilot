@@ -27,10 +27,7 @@ create table if not exists public.profiles (
     jsonb_typeof(education) = 'object'
   ),
   job_titles_seeking text[] not null default '{}',
-  remote_preference text check (
-    remote_preference is null
-    or remote_preference in ('remote', 'onsite', 'hybrid', 'any')
-  ),
+  remote_preference text,
   preferred_locations text[] not null default '{}',
   salary_expectation text,
   cover_letter_tone text check (
@@ -45,9 +42,20 @@ create table if not exists public.profiles (
   ),
   resume_pdf_url text,
   resume_pdf_key text,
+  resume_extracted_pdf_key text,
+  resume_extracted_at timestamptz,
+  constraint profiles_remote_preference_valid check (
+    remote_preference is null
+    or remote_preference = 'any'
+    or remote_preference ~ '^(remote|onsite|hybrid)(,(remote|onsite|hybrid))*$'
+  ),
   constraint profiles_resume_key_matches_user check (
     resume_pdf_key is null
     or resume_pdf_key like ('resumes/' || id::text || '/%')
+  ),
+  constraint profiles_extracted_resume_key_matches_user check (
+    resume_extracted_pdf_key is null
+    or resume_extracted_pdf_key like ('resumes/' || id::text || '/%')
   ),
   is_complete boolean not null default false,
   created_at timestamptz not null default now(),
