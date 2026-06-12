@@ -239,7 +239,7 @@ Auth pages use the standard Navbar above a centered split card and the standard 
 
 ### Protected Placeholders
 
-File: app/dashboard/page.tsx, app/find-jobs/page.tsx
+File: app/dashboard/page.tsx
 Last updated: 2026-06-10
 
 | Property         | Class           |
@@ -255,7 +255,187 @@ Last updated: 2026-06-10
 | Accent usage     | none |
 
 **Pattern notes:**
-These are temporary protected-route placeholders for Auth verification. Later full dashboard and find-jobs features should replace them with their planned complete UI while keeping the same page background, centered max-width, card baseline, and mobile bottom-nav padding. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
+This is a temporary protected-route placeholder for Auth verification. The later full dashboard feature should replace it with its planned complete UI while keeping the same page background, centered max-width, card baseline, and mobile bottom-nav padding. Header actions such as logout should sit in the card header area using the existing secondary-button pattern.
+
+### FindJobsPage
+
+File: app/find-jobs/page.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-background` |
+| Border           | `border-x border-border` |
+| Border radius    | none |
+| Text — primary   | `text-text-primary` |
+| Text — secondary | none |
+| Spacing          | `px-4 pb-32 pt-6`, `md:px-8 md:py-8` |
+| Hover state      | none |
+| Shadow           | none |
+| Accent usage     | none |
+
+**Pattern notes:**
+Find Jobs keeps the protected route shell and current shared Navbar unchanged, then delegates the mock interactive surface to `FindJobsExperience`. Future protected pages should continue using the page shell first and compose feature-specific sections inside it.
+
+### FindJobsExperience
+
+File: components/find-jobs/FindJobsExperience.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-surface-secondary`, `bg-accent-muted` |
+| Border           | `border border-border`, `border-b border-border` |
+| Border radius    | `rounded-xl`, `rounded-md`, `rounded-full` |
+| Text — primary   | `text-[16px] font-semibold leading-6`, `text-text-primary`, `text-accent` |
+| Text — secondary | `text-[12px] font-normal leading-4`, `text-text-muted`, `text-text-secondary` |
+| Spacing          | `space-y-6`, `px-5 py-4`, `md:px-6`, `px-3 py-1`, `px-5 py-12` |
+| Hover state      | none |
+| Shadow           | `shadow-sm` |
+| Accent usage     | `bg-accent-muted`, `text-accent` |
+
+**Pattern notes:**
+FindJobsExperience is the only client-state owner for Feature 09. It filters, sorts, and paginates local mock jobs only; it must not call Adzuna, InsForge, Server Actions, or API routes until later features. It uses `MATCH_THRESHOLD` from `lib/utils.ts` for high/low match logic and keeps page size at 6 for the mock UI.
+
+### SearchControls
+
+File: components/find-jobs/SearchControls.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-success-lightest`, `bg-accent` |
+| Border           | `border border-border`, `border-success-light`, `focus-within:border-accent`, `focus:border-accent` |
+| Border radius    | `rounded-xl`, `rounded-md` |
+| Text — primary   | `text-[14px] font-semibold leading-5`, `text-[15px] font-medium leading-5`, `text-text-primary`, `text-accent-foreground`, `text-success-foreground` |
+| Text — secondary | `text-[12px] font-semibold uppercase leading-4`, `text-text-secondary`, `text-text-muted` |
+| Spacing          | `p-5`, `md:p-6`, `gap-4`, `gap-3`, `px-4`, `px-6`, `py-3`, `mt-5` |
+| Hover state      | `duration-200 ease-out`, `hover:-translate-y-0.5`, `hover:bg-accent-dark`, `hover:shadow-md`, `focus-visible:ring-2 focus-visible:ring-accent` |
+| Shadow           | `shadow-sm`, `hover:shadow-md` |
+| Accent usage     | `bg-accent`, `focus:ring-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+SearchControls uses labeled tokenized inputs, lucide search icon affordances, and a persistent success banner for the mock search result. Submitting refreshes local mock state only and never starts a network request in Feature 09.
+
+### JobFilters
+
+File: components/find-jobs/JobFilters.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface` |
+| Border           | `border border-border`, `focus-within:border-accent`, `focus:border-accent` |
+| Border radius    | `rounded-xl`, `rounded-md` |
+| Text — primary   | `text-[14px] font-medium leading-5`, `text-text-primary` |
+| Text — secondary | `text-text-muted` |
+| Spacing          | `p-4`, `gap-3`, `px-3`, `px-4` |
+| Hover state      | none |
+| Shadow           | `shadow-sm` |
+| Accent usage     | `focus:ring-accent`, `focus-within:ring-accent` |
+
+**Pattern notes:**
+JobFilters owns the visible filter bar controls only. Text filter, match filter, and sort changes reset pagination to the first page through the parent state owner.
+
+### JobsTable
+
+File: components/find-jobs/JobsTable.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-surface-secondary` |
+| Border           | `border-b border-border`, `border border-border` |
+| Border radius    | `rounded-t-xl`, `rounded-md` |
+| Text — primary   | `text-[14px] font-semibold leading-5`, `text-text-primary`, `text-text-dark` |
+| Text — secondary | `text-[12px] font-semibold uppercase leading-4`, `text-[14px] font-medium leading-5`, `text-text-secondary`, `text-text-muted` |
+| Spacing          | `px-6 py-4`, `px-6 py-5`, `gap-3` |
+| Hover state      | `hover:bg-surface-secondary` |
+| Shadow           | none |
+| Accent usage     | none |
+
+**Pattern notes:**
+Desktop jobs render as a fixed-column table with white rows, tokenized hover, company icon tile, match score bar, salary estimate, source badge, and date found. Rows are intentionally not links until job details wiring lands.
+
+### JobsMobileList
+
+File: components/find-jobs/JobsMobileList.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-surface-secondary` |
+| Border           | `border border-border` |
+| Border radius    | `rounded-xl`, `rounded-md` |
+| Text — primary   | `text-[14px] font-semibold leading-5`, `text-text-primary`, `text-text-dark` |
+| Text — secondary | `text-[12px] font-medium uppercase leading-4`, `text-text-muted`, `text-text-secondary` |
+| Spacing          | `p-4`, `gap-3`, `gap-2`, `mt-4`, `mt-1` |
+| Hover state      | none |
+| Shadow           | none |
+| Accent usage     | none |
+
+**Pattern notes:**
+Mobile jobs use stacked cards instead of horizontal table scrolling. Cards preserve the same key fields as desktop: company, role, match score, salary, date found, and source badge.
+
+### JobsPagination
+
+File: components/find-jobs/JobsPagination.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-surface`, `bg-surface-secondary`, `bg-accent-muted` |
+| Border           | `border border-border`, `border-accent-light` |
+| Border radius    | `rounded-b-xl`, `rounded-md` |
+| Text — primary   | `text-[14px] font-semibold leading-5`, `text-text-dark`, `text-accent` |
+| Text — secondary | `text-[14px] font-normal leading-5`, `text-text-secondary` |
+| Spacing          | `p-4`, `md:px-6`, `gap-4`, `gap-2`, `px-4` |
+| Hover state      | `hover:bg-surface-secondary`, `hover:text-accent`, `focus-visible:ring-2 focus-visible:ring-accent`, `disabled:opacity-60` |
+| Shadow           | `shadow-sm` |
+| Accent usage     | `bg-accent-muted`, `border-accent-light`, `text-accent`, `focus-visible:ring-accent` |
+
+**Pattern notes:**
+Pagination is local mock pagination only, with 6 jobs per page, accessible current-page state, disabled Previous/Next boundaries, and result count copy.
+
+### MatchScore
+
+File: components/find-jobs/MatchScore.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-border-light`, `bg-success`, `bg-info-medium`, `bg-warning` |
+| Border           | none |
+| Border radius    | `rounded-full` |
+| Text — primary   | `text-[14px] font-semibold leading-5`, `text-text-dark` |
+| Text — secondary | none |
+| Spacing          | `gap-3` |
+| Hover state      | none |
+| Shadow           | none |
+| Accent usage     | none |
+
+**Pattern notes:**
+MatchScore follows the UI rules score ranges: 80+ success, 60-79 info, below 60 warning. Width is inline style percentage only; colors remain tokenized classes.
+
+### SourceBadge
+
+File: components/find-jobs/SourceBadge.tsx
+Last updated: 2026-06-12
+
+| Property         | Class           |
+| ---------------- | --------------- |
+| Background       | `bg-info-lightest`, `bg-surface-secondary` |
+| Border           | none |
+| Border radius    | `rounded-full` |
+| Text — primary   | `text-[12px] font-medium leading-4`, `text-info-foreground`, `text-text-secondary` |
+| Text — secondary | none |
+| Spacing          | `px-2 py-0.5` |
+| Hover state      | none |
+| Shadow           | none |
+| Accent usage     | none |
+
+**Pattern notes:**
+SourceBadge reserves the visual home for later `jobs.source` values. `search` renders as Search with info tokens; `url` renders as URL with neutral surface tokens.
 
 ### LogoutButton
 

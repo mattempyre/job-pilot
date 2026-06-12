@@ -6,9 +6,9 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ## Current Status
 
-**Phase:** Phase 2 — Profile Page
-**Last completed:** 08 Resume PDF Generation from Profile
-**Next:** 09 Find Jobs Page — Full UI
+**Phase:** Phase 3 — Find Jobs Page
+**Last completed:** 09 Find Jobs Page — Full UI
+**Next:** 10 Adzuna Job Discovery
 
 ---
 
@@ -30,7 +30,7 @@ Update this file after every completed feature. Any AI agent reading this should
 
 ### Phase 3 — Find Jobs Page
 
-- [ ] 09 Find Jobs Page — Full UI
+- [x] 09 Find Jobs Page — Full UI
 - [ ] 10 Adzuna Job Discovery
 - [ ] 11 Filter + Sort + Pagination
 
@@ -74,6 +74,7 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-12 — Resume generation now has a deterministic fallback. If GPT-4o is unavailable or returns invalid resume content, `/api/resume/generate` logs the AI failure, formats the saved profile directly, renders a PDF, and leaves the user with a usable generated resume instead of failing.
 - 2026-06-12 — Resume generation hardening: `/api/resume/generate` now saves with an active-resume compare-and-swap guard and removes the just-uploaded PDF on save conflicts, while generated PDF colors resolve from `app/globals.css` UI tokens instead of duplicated renderer literals.
 - 2026-06-12 — Pending Feature 07 backend migrations were applied to InsForge before Feature 08 real testing: `resume_extracted_pdf_key`, `resume_extracted_at`, `profiles_extracted_resume_key_matches_user`, and multi-select `profiles_remote_preference_valid` are now present.
+- 2026-06-12 — Feature 09 is UI-only and uses local mock job data. `/find-jobs` now has lightly interactive client-side search success, text filter, match filter, sort, pagination, source badges, desktop table, mobile cards, and Adzuna credit, with no Adzuna, InsForge, API route, or DB wiring yet.
 
 ---
 
@@ -116,3 +117,4 @@ Update this file after every completed feature. Any AI agent reading this should
 - 2026-06-11 — Connected Accounts follow-up: added a compact LinkedIn-token connection icon tile to the card header for consistency with the other profile page sections.
 - 2026-06-11 — Work Experience follow-up: removed the role card briefcase icon and kept reorder drag handles visible so role titles do not appear offset by hidden controls.
 - 2026-06-12 — Resume PDF Generation from Profile completed. `/profile` now reviews active private resumes through `/api/resume/current`, generates polished PDFs through `/api/resume/generate`, replaces the active resume reference on success, clears extraction markers for generated replacements, and includes e2e fixture support for first-time generation and replacement confirmation.
+- 2026-06-12 — Find Jobs Page Full UI completed. `/find-jobs` replaced the protected placeholder with a tokenized mock search and jobs list experience, including local filter/sort/pagination state, desktop and mobile responsive layouts, source badges, match score bars, empty state, and shared `MATCH_THRESHOLD` export.
